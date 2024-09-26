@@ -1,7 +1,7 @@
 from dialoguekit.platforms import FlaskSocketPlatform
-from agent import ParrotAgent
+from agent import PlaylistAgent
 
-platform = FlaskSocketPlatform(ParrotAgent)
+platform = FlaskSocketPlatform(PlaylistAgent)
 
 platform.start()
 
