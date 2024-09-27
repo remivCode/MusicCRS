@@ -1,12 +1,9 @@
-from dataclasses import dataclass
 from typing import List
 from song import Song
 import uuid 
 
-@dataclass
 class Playlist():
     def __init__(self, name: str = "My playlist", description: str = ""):
-        
         self.id = uuid.uuid1()
         self.name = name
         self.description = description

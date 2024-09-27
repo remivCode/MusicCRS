@@ -9,9 +9,9 @@ from song import Song
 
 class PlaylistAgent(Agent):
     def __init__(self, id: str):
-        """Parrot agent.
+        """Playlist agent.
 
-        This agent parrots back what the user utters.
+        This agent manages a playlist depending on what the user utters.
         To end the conversation the user has to say `EXIT`.
 
         Args:
@@ -23,7 +23,12 @@ class PlaylistAgent(Agent):
     def welcome(self) -> None:
         """Sends the agent's welcome message."""
         utterance = AnnotatedUtterance(
-            "Hello, I'm here to assit you with making your personnalized music playlist. What can I help youwith?",
+            "Hello, I'm here to assist you with making your personnalized music playlist.\n" + '\n' +
+            "Commands:" + '\n'
+            "add <artist> - <title>: add a song to the playlist" + '\n' +
+            "remove <artist> - <title>: remove a song from the playlist" + '\n' +
+            "clear: clear the playlist" + '\n' +
+            "show: show the playlist" + '\n',
             participant=DialogueParticipant.AGENT,
         )
         self._dialogue_connector.register_agent_utterance(utterance)
@@ -51,8 +56,8 @@ class PlaylistAgent(Agent):
         try:
             if utterance.text.split()[0] == "add":
                 artist = utterance.text.split()[1]
-                title = utterance.text.split()[2]
-                song = Song(title=utterance.text.split()[1], artist=utterance.text.split()[2] or None, album=None)
+                title = utterance.text.split()[3]
+                song = Song(title=title, artist=artist, album=None)
                 self.playlist.add(song)
                 response = AnnotatedUtterance(
                     utterance.text.split()[1] + " has been added to your playlist.",
@@ -62,7 +67,9 @@ class PlaylistAgent(Agent):
                 return
 
             elif utterance.text.split()[0] == "remove":
-                song = Song(title=utterance.text.split()[1], artist=utterance.text.split()[2] or None, album=None)
+                artist = utterance.text.split()[1]
+                title = utterance.text.split()[3]
+                song = Song(title=title, artist=artist or None, album=None)
                 self.playlist.remove(song)
                 response = AnnotatedUtterance(
                     utterance.text.split()[1] + " has been removed from your playlist.",
@@ -99,7 +106,7 @@ class PlaylistAgent(Agent):
                 return
         
         except IndexError as e:
-            print(e)
+            print(f"Error while processing user utterance: {e}")
             response = AnnotatedUtterance(
                 "I don't understand. Please make sure you have the correct format: {command} [title] [artist].",
                 participant=DialogueParticipant.AGENT,
