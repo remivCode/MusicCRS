@@ -1,4 +1,4 @@
-import "./App.css";
+import "./Chat.css";
 import { useEffect } from "react";
 
 function Chat() {
