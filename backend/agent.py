@@ -56,6 +56,9 @@ class PlaylistAgent(Agent):
             "add <artist> - <title>: add a song to the playlist" + '\n' +
             "remove <artist> - <title>: remove a song from the playlist" + '\n' +
             "clear: clear the playlist" + '\n' +
+            "date album : album"+ '\n'+
+            "number albums : artist "+ '\n'+
+            "which album : title"+ '\n'+
             "show: show the playlist" + '\n',
             participant=DialogueParticipant.AGENT,
         )
@@ -78,58 +81,77 @@ class PlaylistAgent(Agent):
 
         try:
             if utterance.text.startswith("add"):
-                artist = utterance.text.split()[1]
-                title = utterance.text.split()[3]
+                parts = utterance.text[4:].split(' - ')
+                if len(parts) == 2:
+                    title = parts[0].strip('"')
+                    artist = parts[1].strip('"')
 
-                # Ajout de la chanson à la base de données
-                cursor.execute('SELECT artist_id FROM artists WHERE name = ?', (artist,))
-                artist_record = cursor.fetchone()
-                if artist_record is None:
-                    # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
-                    add_artist(artist, 0)
+                    # Ajout de la chanson à la base de données
                     cursor.execute('SELECT artist_id FROM artists WHERE name = ?', (artist,))
                     artist_record = cursor.fetchone()
+                    if artist_record is None:
+                        # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
+                        add_artist(artist, 0)
+                        cursor.execute('SELECT artist_id FROM artists WHERE name = ?', (artist,))
+                        artist_record = cursor.fetchone()
 
-                artist_id = artist_record[0]
-                # On ajoute une chanson avec une durée fixe pour simplifier
-                add_song(title, None, artist_id)
+                    artist_id = artist_record[0]
+                    # On ajoute une chanson avec une durée fixe pour simplifier
+                    add_song(title, None, artist_id)
 
-                # Récupérer l'ID de la chanson ajoutée
-                cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = ?', (title, artist_id))
-                song_record = cursor.fetchone()
-                if song_record:
-                    song_id = song_record[0]
-                    add_song_to_playlist(1, song_id)  # Ajout à la playlist avec ID 1
-
-                response = AnnotatedUtterance(
-                    f"{title} by {artist} has been added to your playlist.",
-                    participant=DialogueParticipant.AGENT,
-                )
-                self._dialogue_connector.register_agent_utterance(response)
-                return
-
-            elif utterance.text.startswith("remove"):
-                artist = utterance.text.split()[1]
-                title = utterance.text.split()[3]
-
-                # Suppression de la chanson de la playlist
-                cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = (SELECT artist_id FROM artists WHERE name = ?)', (title, artist))
-                song_record = cursor.fetchone()
-                if song_record:
-                    song_id = song_record[0]
-                    remove_song_from_playlist(1, song_id)  # Suppression de la chanson de la playlist avec ID 1
+                    # Récupérer l'ID de la chanson ajoutée
+                    cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = ?', (title, artist_id))
+                    song_record = cursor.fetchone()
+                    if song_record:
+                        song_id = song_record[0]
+                        add_song_to_playlist(1, song_id)  # Ajout à la playlist avec ID 1
 
                     response = AnnotatedUtterance(
-                        f"{title} by {artist} has been removed from your playlist.",
+                        f"{title} by {artist} has been added to your playlist.",
                         participant=DialogueParticipant.AGENT,
                     )
+                    self._dialogue_connector.register_agent_utterance(response)
+                    return
                 else:
                     response = AnnotatedUtterance(
-                        f"{title} by {artist} not found in the playlist.",
+                        "Please use the format: add \"song_title\" - \"artist_name\".",
                         participant=DialogueParticipant.AGENT,
                     )
-                self._dialogue_connector.register_agent_utterance(response)
-                return
+                    self._dialogue_connector.register_agent_utterance(response)
+                    return
+
+            elif utterance.text.startswith("remove"):
+                parts = utterance.text[7:].split(' - ')
+                if len(parts) == 2:
+                    title = parts[0].strip('"')
+                    artist = parts[1].strip('"')
+
+                    # Suppression de la chanson de la playlist
+                    cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = (SELECT artist_id FROM artists WHERE name = ?)', (title, artist))
+                    song_record = cursor.fetchone()
+                    if song_record:
+                        song_id = song_record[0]
+                        remove_song_from_playlist(1, song_id)  # Suppression de la chanson de la playlist avec ID 1
+
+                        response = AnnotatedUtterance(
+                            f"{title} by {artist} has been removed from your playlist.",
+                            participant=DialogueParticipant.AGENT,
+                        )
+                    else:
+                        response = AnnotatedUtterance(
+                            f"{title} by {artist} not found in the playlist.",
+                            participant=DialogueParticipant.AGENT,
+                        )
+                    self._dialogue_connector.register_agent_utterance(response)
+                    return
+                else:
+                    response = AnnotatedUtterance(
+                        "Please use the format: remove \"song_title\" - \"artist_name\".",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                    self._dialogue_connector.register_agent_utterance(response)
+                    return
+
 
             elif utterance.text.startswith("show"):
                 # Montre les chansons de la playlist
@@ -157,6 +179,63 @@ class PlaylistAgent(Agent):
                 )
                 self._dialogue_connector.register_agent_utterance(response)
                 return
+            
+            elif "date album : " in utterance.text:
+                album_name = utterance.text.split("date album :")[-1].strip().strip('"').strip("'")
+                cursor.execute('SELECT release_date FROM albums WHERE title = ?', (album_name,))
+                release_date_record = cursor.fetchone()
+                if release_date_record:
+                    response = AnnotatedUtterance(
+                        f"The album '{album_name}' was released on {release_date_record[0]}.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"I don't know when the album '{album_name}' was released.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
+
+            elif "number albums :" in utterance.text:
+                artist_name = utterance.text.split("number albums :")[-1].strip().strip('"').strip("'")
+                cursor.execute('SELECT total_albums FROM artists WHERE name = ?', (artist_name,))
+                total_albums_record = cursor.fetchone()
+                if total_albums_record:
+                    response = AnnotatedUtterance(
+                        f"The artist '{artist_name}' has released {total_albums_record[0]} albums.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"I don't have information about the artist '{artist_name}'.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
+
+            elif "which album : " in utterance.text.lower():
+                song_title = utterance.text.split("which album : ")[-1].strip().strip('"').strip("'")
+                cursor.execute('''
+                    SELECT albums.title 
+                    FROM albums 
+                    INNER JOIN songs ON albums.album_id = songs.album_id 
+                    WHERE songs.title = ?
+                ''', (song_title,))
+                album_record = cursor.fetchone()
+                if album_record:
+                    response = AnnotatedUtterance(
+                        f"The song '{song_title}' is featured in the album '{album_record[0]}'.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"I don't know which album features the song '{song_title}'.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
+
 
         except IndexError as e:
             print(f"Error while processing user utterance: {e}")
