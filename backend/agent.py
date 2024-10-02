@@ -1,12 +1,14 @@
-from dialoguekit.core.annotated_utterance import AnnotatedUtterance
+from dialoguekit.core.annotated_utterance import AnnotatedUtterance, Annotation
 from dialoguekit.core.dialogue_act import DialogueAct
 from dialoguekit.core.utterance import Utterance
 from dialoguekit.participant.agent import Agent
 from dialoguekit.participant.participant import DialogueParticipant
+from dialoguekit.core.intent import Intent
 from playlist import Playlist
 import uuid
 import os
 import random
+from song import Song
 
 
 class PlaylistAgent(Agent):
@@ -78,6 +80,9 @@ class PlaylistAgent(Agent):
         )
         self._dialogue_connector.register_agent_utterance(utterance)
 
+    def connect_playlist(self, playlist: Playlist) -> None:
+        self._playlist = playlist
+
     def check_for_suggestions(self):
         if self.interaction_count % 3 == 0:
             self.introduce_new_features()
@@ -99,6 +104,10 @@ class PlaylistAgent(Agent):
                     title = parts[0].strip('"')
                     artist = parts[1].strip('"')
 
+                    song = Song(title=title, artist=artist, album=None)
+
+                    self._playlist.add(song)
+
                     # Ajout de la chanson à la base de données
                     artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
                     if not artist_record:
@@ -117,9 +126,27 @@ class PlaylistAgent(Agent):
                         self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
                     response = AnnotatedUtterance(
-                        f"{title} by {artist} has been added to your playlist.",
+                        title + " by " + artist + " has been added to your playlist.",
                         participant=DialogueParticipant.AGENT,
+                        intent=Intent(label="add")
                     )
+
+                    annotations = [
+                        Annotation(
+                            slot="artist",
+                            value=song.artist
+                        ),
+                        Annotation(
+                            slot="title",
+                            value=song.title
+                        ),
+                        Annotation(
+                            slot="album",
+                            value=song.album
+                        )
+                    ]
+                    response.add_annotations(annotations)
+
                     self._dialogue_connector.register_agent_utterance(response)
                     self.check_for_suggestions()
                     return
@@ -128,6 +155,7 @@ class PlaylistAgent(Agent):
                         "Please use the format: add \"song_title\" - \"artist_name\".",
                         participant=DialogueParticipant.AGENT,
                     )
+
                     self._dialogue_connector.register_agent_utterance(response)
                     return
 
@@ -137,6 +165,10 @@ class PlaylistAgent(Agent):
                 if len(parts) == 2:
                     title = parts[0].strip('"')
                     artist = parts[1].strip('"')
+
+                    song = Song(title=title, artist=artist or None, album=None)
+
+                    self._playlist.remove(song)
 
                     # Suppression de la chanson de la playlist
                     print(f"title: {title} - artist: {artist}")
@@ -149,8 +181,9 @@ class PlaylistAgent(Agent):
                         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
                         response = AnnotatedUtterance(
-                            f"{title} by {artist} has been removed from your playlist.",
+                            title + " has been removed from your playlist.",
                             participant=DialogueParticipant.AGENT,
+                            intent=Intent(label="remove")
                         )
                     except Exception as e:
                         print(f"Error: {e}")
@@ -158,6 +191,23 @@ class PlaylistAgent(Agent):
                             f"{title} by {artist} not found in the playlist.",
                             participant=DialogueParticipant.AGENT,
                         )
+
+                        annotations = [
+                        Annotation(
+                            slot="artist",
+                            value=song.artist
+                        ),
+                        Annotation(
+                            slot="title",
+                            value=song.title
+                        ),
+                        Annotation(
+                            slot="album",
+                            value=song.album
+                        )
+                    ]
+                    response.add_annotations(annotations)
+
                     self._dialogue_connector.register_agent_utterance(response)
                     self.check_for_suggestions()
                     return
@@ -192,11 +242,14 @@ class PlaylistAgent(Agent):
                 return
 
             elif utterance.text.startswith("clear"):
-                self.used_commands.add("clear")
+
+                self._used_commands.add("clear")
                 self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})
+
                 response = AnnotatedUtterance(
                     "Your playlist has been cleared.",
                     participant=DialogueParticipant.AGENT,
+                    intent=Intent(label="clear")
                 )
                 self._dialogue_connector.register_agent_utterance(response)
                 self.check_for_suggestions()

@@ -109,5 +109,6 @@ export default function useSocketConnection(
     login,
     register,
     onAuthentication,
+    socket
   };
 }

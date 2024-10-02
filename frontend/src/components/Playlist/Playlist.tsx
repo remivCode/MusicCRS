@@ -1,16 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MDBIcon, MDBBtn, MDBTable, MDBTableHead, MDBTableBody, MDBInput } from 'mdb-react-ui-kit';
 
+import { useSocket } from "../../contexts/SocketContext";
+import { AgentMessage, ChatMessage, Annotation, Song } from "../../types";
+
 export default function Playlist() {
-  const [playlist, setPlaylist] = useState([
-    { title: 'Die With A Smile', artist: 'Lady Gaga, Bruno Mars', album: 'Die With A Smile' },
-  ]);
+  const [playlist, setPlaylist] = useState<Song[]>([]);
   const [newSong, setNewSong] = useState({ title: '', artist: '', album: '' });
   const [isAddingRow, setIsAddingRow] = useState(false);
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    socket?.on("message", (response: AgentMessage) => {
+      if (response.info) {
+        console.log(response.info);
+      }
+      if (response.message) {
+        handelMessageForPlaylist(response.message);
+      }
+    });
+    });
+
+    const handleAgentAddSong = (annotations: Annotation[]) => {
+      const song: Song = {}
+      annotations.map((annotation) => 
+        {
+          if (annotation.slot === "title") {
+            song.title = annotation.value
+          } else if (annotation.slot === "artist") {
+            song.artist = annotation.value
+          } else if (annotation.slot === "album") {
+            song.album = annotation.value
+          }
+        }
+      )
+  
+      if (song.title && song.artist) {
+        setPlaylist([...playlist, song]);
+      }
+    }
+
+  const handelMessageForPlaylist = (message: ChatMessage) => {
+    const intent = message.intent
+    const annotations: Annotation[] = message.annotations
+
+    if (intent === "add") {
+      handleAgentAddSong(annotations)
+    }
+  };
 
   const handleAddSong = () => {
     if (newSong.title && newSong.artist && newSong.album) {
-      setPlaylist([...playlist, newSong]);
+      const song: Song = {
+        title: newSong.title,
+        artist: newSong.artist,
+        album: newSong.album
+      };
+      setPlaylist([...playlist, song]);
       setNewSong({ title: '', artist: '', album: '' }); // Clear input fields after adding
       setIsAddingRow(false);
     }
@@ -23,8 +69,7 @@ export default function Playlist() {
 
   const handleNewRowClick = () => {
     setIsAddingRow(true); // Show input fields for a new row
-  };
-  
+  };  
 
   return (
     <div className='mt-5'>
@@ -95,9 +140,13 @@ export default function Playlist() {
           )}
 
           {!isAddingRow && (
-            <MDBBtn color='link' rounded size='sm' onClick={() => handleNewRowClick()}>
-              <MDBIcon fas icon="plus" size='lg' />
-            </MDBBtn>
+            <tr>
+              <td>
+                <MDBBtn color='link' rounded size='sm' onClick={() => handleNewRowClick()}>
+                  <MDBIcon fas icon="plus" size='lg' />
+                </MDBBtn>
+              </td>
+            </tr>
           )}
         </MDBTableBody>
       </MDBTable>
