@@ -16,6 +16,7 @@ import {
   MDBCardBody,
   MDBIcon,
   MDBCardFooter,
+  MDBBtn
 } from "mdb-react-ui-kit";
 import { AgentChatMessage, UserChatMessage } from "../ChatMessage";
 import { ChatMessage } from "../../types";
@@ -37,6 +38,7 @@ export default function ChatBox() {
   const [inputValue, setInputValue] = useState<string>("");
   const chatMessagesRef = useRef(chatMessages);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     startConversation();
@@ -134,6 +136,10 @@ export default function ChatBox() {
     });
   }, [onRestart]);
 
+  const handleToggleHelp = () => {
+    setShowHelp(!showHelp);
+  };
+
   return (
     <div className="chat-widget-content">
       <MDBCard
@@ -176,6 +182,23 @@ export default function ChatBox() {
           </form>
         </MDBCardFooter>
       </MDBCard>
+      
+      <MDBBtn color='info' onClick={handleToggleHelp} style={{ width: '150px' }}>
+        {showHelp ? 'Hide Help' : 'Show Help'}
+      </MDBBtn>
+
+      {showHelp && (
+        <div className='mt-3'>
+          <h4>Available Commands:</h4>
+          <ul>
+            <li><strong>add &lt;artist&gt; - &lt;title&gt;</strong>: Add a song to the playlist</li>
+            <li><strong>remove &lt;artist&gt; - &lt;title&gt;</strong>: Remove a song from the playlist</li>
+            <li><strong>clear</strong>: Clear the playlist</li>
+            <li><strong>show</strong>: Show the playlist</li>
+            <li><strong>EXIT</strong>: End the conversation</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
