@@ -4,26 +4,54 @@ from dialoguekit.core.utterance import Utterance
 from dialoguekit.participant.agent import Agent
 from dialoguekit.participant.participant import DialogueParticipant
 from playlist import Playlist
-from song import Song
+import sqlite3
 
+# Connexion à la base de données SQLite
+conn = sqlite3.connect('music.db', check_same_thread=False)
+cursor = conn.cursor()
+
+# Fonctions pour manipuler la base de données
+def add_artist(name, total_albums):
+    cursor.execute('INSERT INTO artists (name, total_albums) VALUES (?, ?)', (name, total_albums))
+    conn.commit()
+
+def add_album(title, artist_id, genre, release_date, total_songs):
+    cursor.execute('INSERT INTO albums (title, artist_id, genre, release_date, total_songs) VALUES (?, ?, ?, ?, ?)', 
+                   (title, artist_id, genre, release_date, total_songs))
+    conn.commit()
+
+def add_song(title, album_id, artist_id):
+    cursor.execute('INSERT INTO songs (title, album_id, artist_id) VALUES (?, ?, ?)', (title, album_id, artist_id))
+    conn.commit()
+
+def add_song_to_playlist(playlist_id, song_id):
+    cursor.execute('INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)', (playlist_id, song_id))
+    conn.commit()
+
+def remove_song_from_playlist(playlist_id, song_id):
+    cursor.execute('DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?', (playlist_id, song_id))
+    conn.commit()
+
+def get_songs_from_playlist(playlist_id):
+    cursor.execute('''
+        SELECT songs.title, artists.name 
+        FROM songs 
+        INNER JOIN playlist_songs ON songs.song_id = playlist_songs.song_id 
+        INNER JOIN artists ON songs.artist_id = artists.artist_id
+        WHERE playlist_songs.playlist_id = ?
+    ''', (playlist_id,))
+    return cursor.fetchall()
 
 class PlaylistAgent(Agent):
     def __init__(self, id: str):
-        """Playlist agent.
-
-        This agent manages a playlist depending on what the user utters.
-        To end the conversation the user has to say `EXIT`.
-
-        Args:
-            id: Agent id.
-        """
+        """Playlist agent."""
         super().__init__(id)
         self.playlist = Playlist()
 
     def welcome(self) -> None:
         """Sends the agent's welcome message."""
         utterance = AnnotatedUtterance(
-            "Hello, I'm here to assist you with making your personnalized music playlist.\n" + '\n' +
+            "Hello, I'm here to assist you with making your personalized music playlist.\n" + '\n' +
             "Commands:" + '\n'
             "add <artist> - <title>: add a song to the playlist" + '\n' +
             "remove <artist> - <title>: remove a song from the playlist" + '\n' +
@@ -43,68 +71,93 @@ class PlaylistAgent(Agent):
         self._dialogue_connector.register_agent_utterance(utterance)
 
     def receive_utterance(self, utterance: Utterance) -> None:
-        """Gets called each time there is a new user utterance.
-
-        If the received message is "EXIT" it will close the conversation.
-
-        Args:
-            utterance: User utterance.
-        """
+        """Gets called each time there is a new user utterance."""
         if utterance.text == "EXIT":
             self.goodbye()
             return
+
         try:
-            if utterance.text.split()[0] == "add":
+            if utterance.text.startswith("add"):
                 artist = utterance.text.split()[1]
                 title = utterance.text.split()[3]
-                song = Song(title=title, artist=artist, album=None)
-                self.playlist.add(song)
+
+                # Ajout de la chanson à la base de données
+                cursor.execute('SELECT artist_id FROM artists WHERE name = ?', (artist,))
+                artist_record = cursor.fetchone()
+                if artist_record is None:
+                    # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
+                    add_artist(artist, 0)
+                    cursor.execute('SELECT artist_id FROM artists WHERE name = ?', (artist,))
+                    artist_record = cursor.fetchone()
+
+                artist_id = artist_record[0]
+                # On ajoute une chanson avec une durée fixe pour simplifier
+                add_song(title, None, artist_id)
+
+                # Récupérer l'ID de la chanson ajoutée
+                cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = ?', (title, artist_id))
+                song_record = cursor.fetchone()
+                if song_record:
+                    song_id = song_record[0]
+                    add_song_to_playlist(1, song_id)  # Ajout à la playlist avec ID 1
+
                 response = AnnotatedUtterance(
-                    utterance.text.split()[1] + " has been added to your playlist.",
+                    f"{title} by {artist} has been added to your playlist.",
                     participant=DialogueParticipant.AGENT,
                 )
                 self._dialogue_connector.register_agent_utterance(response)
                 return
 
-            elif utterance.text.split()[0] == "remove":
+            elif utterance.text.startswith("remove"):
                 artist = utterance.text.split()[1]
                 title = utterance.text.split()[3]
-                song = Song(title=title, artist=artist or None, album=None)
-                self.playlist.remove(song)
-                response = AnnotatedUtterance(
-                    utterance.text.split()[1] + " has been removed from your playlist.",
-                    participant=DialogueParticipant.AGENT,
-                )
+
+                # Suppression de la chanson de la playlist
+                cursor.execute('SELECT song_id FROM songs WHERE title = ? AND artist_id = (SELECT artist_id FROM artists WHERE name = ?)', (title, artist))
+                song_record = cursor.fetchone()
+                if song_record:
+                    song_id = song_record[0]
+                    remove_song_from_playlist(1, song_id)  # Suppression de la chanson de la playlist avec ID 1
+
+                    response = AnnotatedUtterance(
+                        f"{title} by {artist} has been removed from your playlist.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"{title} by {artist} not found in the playlist.",
+                        participant=DialogueParticipant.AGENT,
+                    )
                 self._dialogue_connector.register_agent_utterance(response)
                 return
-            
-            elif utterance.text.split()[0] == "show":
+
+            elif utterance.text.startswith("show"):
+                # Montre les chansons de la playlist
+                songs = get_songs_from_playlist(1)  # Supposons que l'ID de la playlist est 1 pour l'exemple
                 text = ""
-                for el in self.playlist.show():
-                    text += el 
-                    text += "\n"
-                
-                if text == "":
+                for song in songs:
+                    text += f"{song[0]} by {song[1]}\n"  # song[0] est le titre, song[1] l'ID de l'artiste
+
+                if not text:
                     text = "The playlist is empty, try adding new songs."
-                    
+
                 response = AnnotatedUtterance(
                     text,
                     participant=DialogueParticipant.AGENT,
                 )
                 self._dialogue_connector.register_agent_utterance(response)
-
                 return
 
-            elif utterance.text.split()[0] == "clear":
-                self.playlist.clear()
+            elif utterance.text.startswith("clear"):
+                # Supprimer toutes les chansons de la playlist
+                cursor.execute('DELETE FROM playlist_songs')
                 response = AnnotatedUtterance(
                     "Your playlist has been cleared.",
                     participant=DialogueParticipant.AGENT,
                 )
                 self._dialogue_connector.register_agent_utterance(response)
-
                 return
-        
+
         except IndexError as e:
             print(f"Error while processing user utterance: {e}")
             response = AnnotatedUtterance(
@@ -112,7 +165,6 @@ class PlaylistAgent(Agent):
                 participant=DialogueParticipant.AGENT,
             )
             self._dialogue_connector.register_agent_utterance(response)
-
             return
 
         response = AnnotatedUtterance(
