@@ -19,6 +19,13 @@ export default function Playlist() {
         handelMessageForPlaylist(response.message);
       }
     });
+
+    socket?.on("playlist", (data: Song[]) => { // Errors here
+      data.forEach((s) => {
+        setPlaylist([...playlist, s]);
+      })
+    });
+
   });
 
   const handleAgentAddSong = (annotations: Annotation[]) => {

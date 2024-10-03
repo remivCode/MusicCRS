@@ -119,6 +119,15 @@ class CustomNamespace(ChatNamespace):
     def __init__(self, namespace: str, platform: CustomPlatform) -> None:
         super().__init__(namespace, platform)
 
+    def on_connect(self) -> None:
+        req: SocketIORequest = cast(SocketIORequest, request)
+        self._platform.connect(req.sid)
+        logger.info(f"Client connected; user_id: {req.sid}")
+
+        current_playlist = self._platform._playlist.songs  # Assuming _playlist has a 'songs' attribute
+        song_data = [{"title": song.title, "artist": song.artist, "album": song.album} for song in current_playlist]
+        self.emit("playlist", song_data, room=req.sid)
+
     def on_remove(self, data: dict) -> None:
         req: SocketIORequest = cast(SocketIORequest, request)
         self._platform.remove(req.sid, data["remove"])
