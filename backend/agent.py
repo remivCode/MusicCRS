@@ -5,6 +5,7 @@ from dialoguekit.participant.agent import Agent
 from dialoguekit.participant.participant import DialogueParticipant
 from playlist import Playlist
 import sqlite3
+import random
 
 # Connexion à la base de données SQLite
 conn = sqlite3.connect('music.db', check_same_thread=False)
@@ -56,10 +57,13 @@ class PlaylistAgent(Agent):
             "add <artist> - <title>: add a song to the playlist" + '\n' +
             "remove <artist> - <title>: remove a song from the playlist" + '\n' +
             "clear: clear the playlist" + '\n' +
+            "show: show the playlist" + '\n' +
             "date album : album"+ '\n'+
             "number albums : artist "+ '\n'+
             "which album : title"+ '\n'+
-            "show: show the playlist" + '\n',
+            "genre album : album" + '\n' +
+            "number songs : artist" + '\n'
+            "give song : artist" + '\n',
             participant=DialogueParticipant.AGENT,
         )
         self._dialogue_connector.register_agent_utterance(utterance)
@@ -196,6 +200,47 @@ class PlaylistAgent(Agent):
                     )
                 self._dialogue_connector.register_agent_utterance(response)
                 return
+            
+            elif "genre album : " in utterance.text:
+                album_name = utterance.text.split("genre album :")[-1].strip().strip('"').strip("'")
+                cursor.execute('SELECT genre FROM albums WHERE title = ?', (album_name,))
+                genre_cursor = cursor.fetchone()
+                if genre_cursor:
+                    response = AnnotatedUtterance(
+                        f"The genre of '{album_name}' is {genre_cursor[0]}.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"I don't know the genre of the album '{album_name}'.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
+            
+            elif "number songs :" in utterance.text:
+                artist_name = utterance.text.split("number songs :")[-1].strip().strip('"').strip("'")
+                cursor.execute('''
+                    SELECT COUNT(songs.song_id)
+                    FROM songs
+                    JOIN artists ON songs.artist_id = artists.artist_id
+                    WHERE artists.name = ?
+                    GROUP BY artists.name;
+                ''', (artist_name,))  
+                total_songs_cursor = cursor.fetchone()
+                if total_songs_cursor:
+                    total_songs = total_songs_cursor[0]
+                    response = AnnotatedUtterance(
+                        f"The artist '{artist_name}' has {total_songs} songs.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"I don't have information on the number of songs for the artist '{artist_name}'.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
 
             elif "number albums :" in utterance.text:
                 artist_name = utterance.text.split("number albums :")[-1].strip().strip('"').strip("'")
@@ -235,7 +280,24 @@ class PlaylistAgent(Agent):
                     )
                 self._dialogue_connector.register_agent_utterance(response)
                 return
-
+            
+            elif "give song : " in utterance.text:
+                artist_name = utterance.text.split("give song :")[-1].strip().strip('"').strip("'")
+                cursor.execute('SELECT title FROM songs WHERE artist_id = (SELECT artist_id FROM artists WHERE name = ?)', (artist_name,))
+                song_record = cursor.fetchall()
+                if song_record:
+                    random_song = random.choice(song_record)
+                    response = AnnotatedUtterance(
+                        f"Here's a song by {artist_name}: {random_song}.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                else:
+                    response = AnnotatedUtterance(
+                        f"Sorry, I couldn't find any songs by {artist_name}.",
+                        participant=DialogueParticipant.AGENT,
+                    )
+                self._dialogue_connector.register_agent_utterance(response)
+                return
 
         except IndexError as e:
             print(f"Error while processing user utterance: {e}")
