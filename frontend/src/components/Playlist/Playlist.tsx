@@ -107,8 +107,13 @@ export default function Playlist() {
     setIsAddingRow(true); // Show input fields for a new row
   };  
 
+  const handleClearPlaylist = () => {
+    socket?.emit("clear", {})
+    setPlaylist([]);
+  };
+
   return (
-    <div className='mt-5'>
+    <div className='mt-5' style={{ width: '100%' }}>
       {/* Playlist display */}
       <MDBTable align='middle'>
         <MDBTableHead>
@@ -180,6 +185,10 @@ export default function Playlist() {
               <td>
                 <MDBBtn color='link' rounded size='sm' onClick={() => handleNewRowClick()}>
                   <MDBIcon fas icon="plus" size='lg' />
+                </MDBBtn>
+
+                <MDBBtn color='info' onClick={() => handleClearPlaylist()} style={{ width: '100px', marginLeft: '10px', marginRight: '10px'}}>
+                  Clear
                 </MDBBtn>
               </td>
             </tr>
