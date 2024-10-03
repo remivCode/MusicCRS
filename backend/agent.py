@@ -125,27 +125,7 @@ class PlaylistAgent(Agent):
                         song_id = song_record[0][0]
                         self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
-                    response = AnnotatedUtterance(
-                        title + " by " + artist + " has been added to your playlist.",
-                        participant=DialogueParticipant.AGENT,
-                        intent=Intent(label="add")
-                    )
-
-                    annotations = [
-                        Annotation(
-                            slot="artist",
-                            value=song.artist
-                        ),
-                        Annotation(
-                            slot="title",
-                            value=song.title
-                        ),
-                        Annotation(
-                            slot="album",
-                            value=song.album
-                        )
-                    ]
-                    response.add_annotations(annotations)
+                    response = self.generate_add_response(song)
 
                     self._dialogue_connector.register_agent_utterance(response)
                     self.check_for_suggestions()
@@ -170,7 +150,6 @@ class PlaylistAgent(Agent):
 
                     self._playlist.remove(song)
 
-                    # Suppression de la chanson de la playlist
                     print(f"title: {title} - artist: {artist}")
                     try:
                         artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
@@ -180,46 +159,21 @@ class PlaylistAgent(Agent):
                         print(f"deleted playlist_song _record: {playlist_song_record}")
                         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
-                        response = AnnotatedUtterance(
-                            title + " has been removed from your playlist.",
-                            participant=DialogueParticipant.AGENT,
-                            intent=Intent(label="remove")
-                        )
+                        response = self.generate_remove_response(song)
                     except Exception as e:
                         print(f"Error: {e}")
                         response = AnnotatedUtterance(
                             f"{title} by {artist} not found in the playlist.",
                             participant=DialogueParticipant.AGENT,
                         )
-
-                        annotations = [
-                        Annotation(
-                            slot="artist",
-                            value=song.artist
-                        ),
-                        Annotation(
-                            slot="title",
-                            value=song.title
-                        ),
-                        Annotation(
-                            slot="album",
-                            value=song.album
-                        )
-                    ]
-                    response.add_annotations(annotations)
-
-                    self._dialogue_connector.register_agent_utterance(response)
-                    self.check_for_suggestions()
-                    return
                 else:
                     response = AnnotatedUtterance(
                         "Please use the format: remove \"song_title\" - \"artist_name\".",
                         participant=DialogueParticipant.AGENT,
                     )
-                    self._dialogue_connector.register_agent_utterance(response)
-                    self.check_for_suggestions()
-                    return
-
+                self._dialogue_connector.register_agent_utterance(response)
+                self.check_for_suggestions()
+                return
 
             elif utterance.text.startswith("show"):
                 self.used_commands.add("show")
@@ -395,4 +349,72 @@ class PlaylistAgent(Agent):
             participant=DialogueParticipant.AGENT,
         )
         self._dialogue_connector.register_agent_utterance(response)
+
+    def generate_add_response(self, song: Song) -> AnnotatedUtterance:
+        """
+        Generates a response when a song is added to the playlist.
+
+        Args:
+            song: The Song instance that was added to the playlist.
+
+        Returns:
+            AnnotatedUtterance: The response to be sent to the user.
+        """
+        response = AnnotatedUtterance(
+            song.title + " by " + song.artist + " has been added to your playlist.",
+            participant=DialogueParticipant.AGENT,
+            intent=Intent(label="add")
+        )
+
+        annotations = [
+            Annotation(
+                slot="artist",
+                value=song.artist
+            ),
+            Annotation(
+                slot="title",
+                value=song.title
+            ),
+            Annotation(
+                slot="album",
+                value=song.album
+            )
+        ]
+        response.add_annotations(annotations)
+
+        return response
+    
+    def generate_remove_response(self, song: Song) -> AnnotatedUtterance:
+        """
+        Generates a response when a song is removed from the playlist.
+
+        Args:
+            song: The Song instance that was removed from the playlist.
+
+        Returns:
+            AnnotatedUtterance: The response to be sent to the user.
+        """
+        response = AnnotatedUtterance(
+            song.title + " by " + song.artist + " has been removed from your playlist.",
+            participant=DialogueParticipant.AGENT,
+            intent=Intent(label="remove")
+        )
+
+        annotations = [
+            Annotation(
+                slot="artist",
+                value=song.artist
+            ),
+            Annotation(
+                slot="title",
+                value=song.title
+            ),
+            Annotation(
+                slot="album",
+                value=song.album
+            )
+        ]
+        response.add_annotations(annotations)
+
+        return response
         self.check_for_suggestions()

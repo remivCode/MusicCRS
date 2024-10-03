@@ -21,24 +21,49 @@ export default function Playlist() {
     });
     });
 
-    const handleAgentAddSong = (annotations: Annotation[]) => {
-      const song: Song = {}
-      annotations.map((annotation) => 
-        {
-          if (annotation.slot === "title") {
-            song.title = annotation.value
-          } else if (annotation.slot === "artist") {
-            song.artist = annotation.value
-          } else if (annotation.slot === "album") {
-            song.album = annotation.value
-          }
+  const handleAgentAddSong = (annotations: Annotation[]) => {
+    const song: Song = {}
+    annotations.map((annotation) => 
+      {
+        if (annotation.slot === "title") {
+          song.title = annotation.value
+        } else if (annotation.slot === "artist") {
+          song.artist = annotation.value
+        } else if (annotation.slot === "album") {
+          song.album = annotation.value
         }
-      )
-  
-      if (song.title && song.artist) {
-        setPlaylist([...playlist, song]);
       }
+    )
+
+    if (song.title && song.artist) {
+      setPlaylist([...playlist, song]);
     }
+  }
+
+  const handleAgentRemoveSong = (annotations: Annotation[]) => {
+    const song: Song = {}
+    annotations.map((annotation) => 
+      {
+        if (annotation.slot === "title") {
+          song.title = annotation.value
+        } else if (annotation.slot === "artist") {
+          song.artist = annotation.value
+        } else if (annotation.slot === "album") {
+          song.album = annotation.value
+        }
+      }
+    )
+
+    if (song.title && song.artist) {
+      setPlaylist((prevPlaylist) =>
+        prevPlaylist.filter(
+          (item) =>
+            item.title?.toLowerCase() !== song.title?.toLowerCase() ||
+            item.artist?.toLowerCase() !== song.artist?.toLowerCase()
+        )
+      );
+    }
+  }
 
   const handelMessageForPlaylist = (message: ChatMessage) => {
     const intent = message.intent
@@ -46,6 +71,12 @@ export default function Playlist() {
 
     if (intent === "add") {
       handleAgentAddSong(annotations)
+    }
+    else if (intent === "remove") {
+      handleAgentRemoveSong(annotations)
+    }
+    else if (intent === "clear") {
+      setPlaylist([])
     }
   };
 
