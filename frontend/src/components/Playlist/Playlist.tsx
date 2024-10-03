@@ -19,7 +19,7 @@ export default function Playlist() {
         handelMessageForPlaylist(response.message);
       }
     });
-    });
+  });
 
   const handleAgentAddSong = (annotations: Annotation[]) => {
     const song: Song = {}
@@ -87,6 +87,9 @@ export default function Playlist() {
         artist: newSong.artist,
         album: newSong.album
       };
+
+      socket?.emit("add", {add: song}); 
+
       setPlaylist([...playlist, song]);
       setNewSong({ title: '', artist: '', album: '' }); // Clear input fields after adding
       setIsAddingRow(false);
@@ -94,6 +97,8 @@ export default function Playlist() {
   };
 
   const handleRemoveSong = (index: number) => {
+    socket?.emit("remove", {remove: playlist[index]})
+
     const updatedPlaylist = playlist.filter((_, i) => i !== index);
     setPlaylist(updatedPlaylist);
   };

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from dialoguekit.platforms import FlaskSocketPlatform
+from flask import request
+
+from dialoguekit.platforms.flask_socket_platform import FlaskSocketPlatform, logger, SocketIORequest, ChatNamespace
 from dialoguekit.connector import DialogueConnector
-from dialoguekit.platforms.flask_socket_platform import ChatNamespace
-from typing import Type, Dict, Any, List
+from typing import Type, Dict, Any, List, cast
 from dataclasses import asdict, dataclass
 from dialoguekit.core import Utterance, AnnotatedUtterance
 
 from custom_user import CustomUser
 from playlist import Playlist
 
-from dialoguekit.participant import Agent, User
+from song import Song
+
+from dialoguekit.participant import Agent
 
 @dataclass
 class CustomMessage:
@@ -83,7 +86,7 @@ class CustomPlatform(FlaskSocketPlatform):
             port: Port.
         """
         print("Starting namespace...")
-        self.socketio.on_namespace(ChatNamespace("/", self))
+        self.socketio.on_namespace(CustomNamespace("/", self))
         self.socketio.run(self.app, host=host, port=port)
 
     def display_agent_utterance(
@@ -100,3 +103,34 @@ class CustomPlatform(FlaskSocketPlatform):
             asdict(CustomResponse(user_id, message)),
             room=user_id,
         )
+
+    def remove(self, user_id: str, remove: dict) -> None:
+        song = Song(remove["title"], remove["artist"], remove["album"])
+        self._playlist.remove(song)
+
+    def add(self, user_id: str, add: dict) -> None:
+        song = Song(add["title"], add["artist"], add["album"])
+        self._playlist.add(song)
+
+    def clear(self, user_id: str) -> None:
+        self._playlist.clear()
+
+class CustomNamespace(ChatNamespace):
+    def __init__(self, namespace: str, platform: CustomPlatform) -> None:
+        super().__init__(namespace, platform)
+
+    def on_remove(self, data: dict) -> None:
+        req: SocketIORequest = cast(SocketIORequest, request)
+        self._platform.remove(req.sid, data["remove"])
+        logger.info(f"Message received: {data}")
+
+    def on_add(self, data: dict) -> None:
+        print("Adding song...")
+        req: SocketIORequest = cast(SocketIORequest, request)
+        self._platform.add(req.sid, data["add"])
+        logger.info(f"Message received: {data}")
+
+    def on_clear(self, data: dict) -> None:
+        req: SocketIORequest = cast(SocketIORequest, request)
+        self._platform.clear(req.sid)
+        logger.info(f"Message received: {data}")
