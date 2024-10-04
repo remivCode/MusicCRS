@@ -248,7 +248,7 @@ class PlaylistAgent(Agent):
             elif "give song : " in utterance.text:
                 artist_name = utterance.text.split("give song :")[-1].strip().strip('"').strip("'")
 
-                artist_record = self.db.read(table='artists', data=['artist_id'], where={'artist_name': artist_name})
+                artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist_name})
                 song_record = self.db.read(table='songs', data=['title'], where={'artist_id': artist_record[0][0]})
                 if song_record:
                     random_song = random.choice(song_record)
