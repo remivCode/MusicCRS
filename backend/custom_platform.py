@@ -73,6 +73,8 @@ class CustomPlatform(FlaskSocketPlatform):
 
         agent = self.get_new_agent()
         agent.connect_playlist(self.playlist, self.db)
+        commands = agent.get_commands()
+        self.socketio.emit("commands", commands, room=user_id)
         
         user = self._active_users[user_id]
         user.connect_playlist(self.playlist, self.db)

@@ -17,16 +17,46 @@ class PlaylistAgent(Agent):
         super().__init__(id)
 
         self.commands = {
-            "add": "Add a song to the playlist.",
-            "remove": "Remove a song from the playlist.",
-            "show": "Show the current playlist.",
-            "clear": "Clear the playlist.",
-            "date album": "Ask about the release date of an album.",
-            "genre album": "Ask about the genre of an album.",
-            "number songs": "Ask about the number of songs in an album.",
-            "number albums": "Ask about the number of albums by an artist.",
-            "which album": "Ask which album contains a song.",
-            "give song": "Ask for a random song by an artist.",
+            "add": {
+                "desc": "Add a song to the playlist.",
+                "syntax": "add <title> - <artist>",
+                },
+            "remove": {
+                "desc": "Remove a song from the playlist.",
+                "syntax": "remove <title> - <artist>",
+                },
+            "show": {
+                "desc": "Show the current playlist.",
+                "syntax": "show",
+                },
+            "clear": {
+                "desc": "Clear the playlist.",
+                "syntax": "clear",
+                },
+            "date album": {
+                "desc": "Ask about the release date of an album.",
+                "syntax": "date album : <album>",
+                },
+            "genre album": {
+                "desc": "Ask about the genre of an album.",
+                "syntax": "genre album : <album>",
+                },
+            "number songs": {
+                "desc": "Ask about the number of songs in an artist.",
+                "syntax": "number songs : <artist>",
+                },
+            "number albums": {
+                "desc": "Ask about the number of albums by an artist.",
+                "syntax": "number albums : <artist>",
+                },
+            "which album": {
+                "desc": "Ask which album contains a song.",
+                "syntax": "which album : <title>",
+                },
+            "give song": {
+                "desc": "Ask for a random song by an artist.",
+                "syntax": "give song : <artist>",
+                },
         }
         self.used_commands = set()
         self.interaction_count = 0 
@@ -43,22 +73,19 @@ class PlaylistAgent(Agent):
             )
             self._dialogue_connector.register_agent_utterance(response)
 
+    def get_commands(self) -> list:
+        return [{
+            "key": key,
+            "desc": value["desc"],
+            "syntax": value["syntax"],
+        } for key, value in self.commands.items()]
 
     def welcome(self) -> None:
         """Sends the agent's welcome message."""
+        msg = "Hello, I'm here to assist you with making your personalized music playlist.\n" + '\n' + "Commands:" + '\n' + '\n'.join([f"{value['syntax']}: {value['desc']}" for value in self.commands.values()])
+        
         utterance = AnnotatedUtterance(
-            "Hello, I'm here to assist you with making your personalized music playlist.\n" + '\n' +
-            "Commands:" + '\n'
-            "add <artist> - <title>: add a song to the playlist" + '\n' +
-            "remove <artist> - <title>: remove a song from the playlist" + '\n' +
-            "clear: clear the playlist" + '\n' +
-            "show: show the playlist" + '\n' +
-            "date album : album"+ '\n'+
-            "number albums : artist "+ '\n'+
-            "which album : title"+ '\n'+
-            "genre album : album" + '\n' +
-            "number songs : artist" + '\n'
-            "give song : artist" + '\n',
+            msg,
             participant=DialogueParticipant.AGENT,
         )
         self._dialogue_connector.register_agent_utterance(utterance)

@@ -30,6 +30,12 @@ export type Song = {
   album?: string;
 };
 
+export type Command = {
+  key: string;
+  desc: string;
+  syntax: string;
+};
+
 export type AgentMessage = {
   recipient: string;
   message: ChatMessage;
