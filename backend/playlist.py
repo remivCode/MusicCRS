@@ -40,6 +40,7 @@ class Playlist():
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM songs ' +
             'INNER JOIN playlist_songs ON songs.song_id = playlist_songs.song_id ' +
             'INNER JOIN artists ON songs.artist_id = artists.artist_id ' +
+            'INNER JOIN albums ON songs.album_id = albums.album_id ' +
             'WHERE playlist_songs.playlist_id = ?', (playlist_id,))
         return cursor.fetchall()
     

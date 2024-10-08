@@ -4,8 +4,12 @@ from playlist import Playlist
 class CustomUser(User):
     def __init__(self, id: str, user_type: UserType = UserType.HUMAN) -> None:
         super().__init__(id, user_type=user_type)
-        self._playlist: Playlist = None
+        self._playlist: int = None
+        self._db: Playlist = None
 
-    def connect_playlist(self, playlist: Playlist) -> None:
-        self._playlist = playlist
+    def connect_playlist(self, playlist_id: int, db: Playlist) -> None:
+        self._playlist = playlist_id
+        self._db = db
+
+        print(f"user playlist id {self._playlist}")
 

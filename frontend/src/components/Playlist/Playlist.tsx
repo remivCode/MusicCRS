@@ -21,9 +21,7 @@ export default function Playlist() {
     });
 
     socket?.on("playlist", (data: Song[]) => { // Errors here
-      data.forEach((s) => {
-        setPlaylist([...playlist, s]);
-      })
+      setPlaylist((prevPlaylist) => [...prevPlaylist, ...data]);
     });
 
   });

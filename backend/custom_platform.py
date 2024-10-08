@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os, uuid
 
 from flask import request
 
@@ -53,7 +54,13 @@ class CustomPlatform(FlaskSocketPlatform):
     def __init__(self, agent_class: Type[Agent]) -> None:
         super().__init__(agent_class=agent_class)
         self._active_users: Dict[str, CustomUser] = {}
-        self._playlist: Playlist = Playlist()
+        if os.path.exists('music.db'):
+            self.db = Playlist(id=uuid.uuid4().hex, init=False)
+        else:
+            self.db = Playlist(id=uuid.uuid4().hex)
+
+        self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
+        self.db.insert_data(playlist=self.playlist)
 
     def connect(self, user_id: str) -> None:
         """Connects a user to an agent.
@@ -65,11 +72,16 @@ class CustomPlatform(FlaskSocketPlatform):
         self._active_users[user_id] = CustomUser(user_id)
 
         agent = self.get_new_agent()
-        agent.connect_playlist(self._playlist)
+        agent.connect_playlist(self.playlist, self.db)
         
         user = self._active_users[user_id]
-        print(type(user))
-        user.connect_playlist(self._playlist)
+        user.connect_playlist(self.playlist, self.db)
+    
+        print(f"platform playlist id {self.playlist}")
+
+        songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.title', 'artists.name', 'albums.title'))
+        song_data = [{"title": song[0], "artist": song[1], "album": song[2]} for song in songs]
+        self.socketio.emit("playlist", song_data, room=user_id)
 
         dialogue_connector = DialogueConnector(
             agent=agent,
@@ -106,14 +118,46 @@ class CustomPlatform(FlaskSocketPlatform):
 
     def remove(self, user_id: str, remove: dict) -> None:
         song = Song(remove["title"], remove["artist"], remove["album"])
-        self._playlist.remove(song)
+        try:
+            artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
+            song_record = self.db.read(table='songs', data=['song_id'], where={'title': song.title, 'artist_id': artist_record[0][0]})
+            song_id = song_record[0][0]
+            playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where={'playlist_id': self.playlist, 'song_id': song_id})
+            print(f"deleted playlist_song _record: {playlist_song_record}")
+            self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+
+        except Exception as e:
+            print(f"Error: {e}")
+            
 
     def add(self, user_id: str, add: dict) -> None:
         song = Song(add["title"], add["artist"], add["album"])
-        self._playlist.add(song)
+        artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
+        if not artist_record:
+            # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
+            self.db.create(table='artists', data={'name': song.artist})
+            artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
+
+        artist_id = artist_record[0][0]
+
+        album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
+        if not album_record:
+            if not song.album:
+                song.album = "Unknown"
+            self.db.create(table='albums', data={'title': song.album})
+            album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
+
+        album_id = album_record[0][0]
+
+        self.db.create(table='songs', data={'title': song.title, 'artist_id': artist_id, 'album_id': album_id})
+
+        song_record = self.db.read(table='songs', data=['song_id'], where={'title': song.title, 'artist_id': artist_id})
+        if song_record:
+            song_id = song_record[0][0]
+            self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
     def clear(self, user_id: str) -> None:
-        self._playlist.clear()
+        self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})
 
 class CustomNamespace(ChatNamespace):
     def __init__(self, namespace: str, platform: CustomPlatform) -> None:
@@ -123,10 +167,6 @@ class CustomNamespace(ChatNamespace):
         req: SocketIORequest = cast(SocketIORequest, request)
         self._platform.connect(req.sid)
         logger.info(f"Client connected; user_id: {req.sid}")
-
-        current_playlist = self._platform._playlist.songs  # Assuming _playlist has a 'songs' attribute
-        song_data = [{"title": song.title, "artist": song.artist, "album": song.album} for song in current_playlist]
-        self.emit("playlist", song_data, room=req.sid)
 
     def on_remove(self, data: dict) -> None:
         req: SocketIORequest = cast(SocketIORequest, request)

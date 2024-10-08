@@ -15,14 +15,6 @@ class PlaylistAgent(Agent):
     def __init__(self, id: str):
         """Playlist agent."""
         super().__init__(id)
-        if os.path.exists('music.db'):
-            self.db = Playlist(id=uuid.uuid4().hex, init=False)
-        else:
-            self.db = Playlist(id=uuid.uuid4().hex)
-            self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
-
-        self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
-        self.db.insert_data(playlist=self.playlist)
 
         self.commands = {
             "add": "Add a song to the playlist.",
@@ -80,8 +72,11 @@ class PlaylistAgent(Agent):
         )
         self._dialogue_connector.register_agent_utterance(utterance)
 
-    def connect_playlist(self, playlist: Playlist) -> None:
-        self._playlist = playlist
+    def connect_playlist(self, playlist: int, db: Playlist) -> None:
+        self.playlist = playlist
+        self.db = db
+
+        print(f"agent playlist id {self.playlist}")
 
     def check_for_suggestions(self):
         if self.interaction_count % 3 == 0:
@@ -106,8 +101,6 @@ class PlaylistAgent(Agent):
 
                     song = Song(title=title, artist=artist, album=None)
 
-                    self._playlist.add(song)
-
                     # Ajout de la chanson à la base de données
                     artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
                     if not artist_record:
@@ -118,11 +111,21 @@ class PlaylistAgent(Agent):
                     print(f"artist_record: {artist_record}")
                     artist_id = artist_record[0][0]
 
-                    self.db.create(table='songs', data={'title': title, 'artist_id': artist_id, 'album_id': None})
+                    album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
+                    if not album_record:
+                        if not song.album:
+                            song.album = "Unknown"
+                        self.db.create(table='albums', data={'title': song.album})
+                        album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
 
-                    song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_id})
+                    album_id = album_record[0][0]
+
+                    self.db.create(table='songs', data={'title': title, 'artist_id': artist_id, 'album_id': album_id})
+
+                    song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_id, 'album_id': album_id})
                     if song_record:
                         song_id = song_record[0][0]
+                        print(f"Created song: {song_id}")
                         self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
                     response = self.generate_add_response(song)
@@ -147,8 +150,6 @@ class PlaylistAgent(Agent):
                     artist = parts[1].strip('"')
 
                     song = Song(title=title, artist=artist or None, album=None)
-
-                    self._playlist.remove(song)
 
                     print(f"title: {title} - artist: {artist}")
                     try:
@@ -197,7 +198,7 @@ class PlaylistAgent(Agent):
 
             elif utterance.text.startswith("clear"):
 
-                self._used_commands.add("clear")
+                self.used_commands.add("clear")
                 self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})
 
                 response = AnnotatedUtterance(
@@ -277,7 +278,8 @@ class PlaylistAgent(Agent):
             elif "number albums :" in utterance.text:
                 self.used_commands.add("number albums")
                 artist_name = utterance.text.split("number albums :")[-1].strip().strip('"').strip("'")
-                total_albums_record = self.db.read(table='albums', data=['total_albums'], where={'artist_id': artist_id})
+                artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist_name})
+                total_albums_record = self.db.read(table='artists', data=['total_albums'], where={'artist_id': artist_record[0][0]})
                 if total_albums_record:
                     response = AnnotatedUtterance(
                         f"The artist '{artist_name}' has released {total_albums_record[0][0]} albums.",
@@ -295,10 +297,10 @@ class PlaylistAgent(Agent):
             elif "which album : " in utterance.text.lower():
                 self.used_commands.add("which album")
                 song_title = utterance.text.split("which album : ")[-1].strip().strip('"').strip("'")
-                album_record = self.db.read_album_from_song(song_title, data=['albums.title'])
+                album_record = self.db.read_album_from_song(song_title=song_title, data=['albums.title'])
                 if album_record:
                     response = AnnotatedUtterance(
-                        f"The song '{song_title}' is featured in the album(s) '{[album for album in album_record]}'.",
+                        f"The song '{song_title}' is featured in the album(s) '{', '.join(album[0] for album in album_record)}'.",
                         participant=DialogueParticipant.AGENT,
                     )
                 else:
@@ -319,7 +321,7 @@ class PlaylistAgent(Agent):
                 if song_record:
                     random_song = random.choice(song_record)
                     response = AnnotatedUtterance(
-                        f"Here's a song by {artist_name}: {random_song}.",
+                        f"Here's a song by {artist_name}: {random_song[0]}.",
                         participant=DialogueParticipant.AGENT,
                     )
                 else:
@@ -337,7 +339,7 @@ class PlaylistAgent(Agent):
         except IndexError as e:
             print(f"Error while processing user utterance: {e}")
             response = AnnotatedUtterance(
-                "I don't understand. Please make sure you have the correct format: {command} [title] [artist].",
+                "I don't understand. Please make sure you have the correct format.",
                 participant=DialogueParticipant.AGENT,
             )
             self._dialogue_connector.register_agent_utterance(response)
