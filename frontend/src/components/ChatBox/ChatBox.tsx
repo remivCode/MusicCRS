@@ -19,7 +19,7 @@ import {
   MDBBtn
 } from "mdb-react-ui-kit";
 import { AgentChatMessage, UserChatMessage } from "../ChatMessage";
-import { ChatMessage } from "../../types";
+import { ChatMessage, Command } from "../../types";
 import { ConfigContext } from "../../contexts/ConfigContext";
 
 export default function ChatBox() {
@@ -32,6 +32,7 @@ export default function ChatBox() {
     onMessage,
     onRestart,
     giveFeedback,
+    socket
   } = useSocket();
   const [chatMessages, setChatMessages] = useState<JSX.Element[]>([]);
   const [chatButtons, setChatButtons] = useState<JSX.Element[]>([]);
@@ -39,6 +40,9 @@ export default function ChatBox() {
   const chatMessagesRef = useRef(chatMessages);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [commands, setCommands] = useState([
+    {key: "EXIT", desc: "End the conversation", syntax: "EXIT"},
+  ]);
 
   useEffect(() => {
     startConversation();
@@ -140,6 +144,12 @@ export default function ChatBox() {
     setShowHelp(!showHelp);
   };
 
+  useEffect(() => {
+    socket?.on("commands", (data: Command[]) => { // Errors here
+      setCommands((prevCommands) => [...prevCommands, ...data]);
+    });
+  }, [socket]);
+
   return (
     <div className="chat-widget-content">
       <MDBCard
@@ -191,11 +201,11 @@ export default function ChatBox() {
         <div className='mt-3'>
           <h4>Available Commands:</h4>
           <ul>
-            <li><strong>add &lt;artist&gt; - &lt;title&gt;</strong>: Add a song to the playlist</li>
-            <li><strong>remove &lt;artist&gt; - &lt;title&gt;</strong>: Remove a song from the playlist</li>
-            <li><strong>clear</strong>: Clear the playlist</li>
-            <li><strong>show</strong>: Show the playlist</li>
-            <li><strong>EXIT</strong>: End the conversation</li>
+          {commands.map((command, index) => (
+            <li key={index}>
+              <strong>{command.syntax}</strong>: {command.desc}
+            </li>
+          ))}
           </ul>
         </div>
       )}

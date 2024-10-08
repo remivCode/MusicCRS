@@ -16,6 +16,24 @@ export type ChatMessage = {
   attachments?: ChatMessageAttachment[];
   text?: string;
   intent?: string;
+  annotations: Annotation[];
+};
+
+export type Annotation = {
+  slot: string;
+  value: string;
+};
+
+export type Song = {
+  title?: string;
+  artist?: string;
+  album?: string;
+};
+
+export type Command = {
+  key: string;
+  desc: string;
+  syntax: string;
 };
 
 export type AgentMessage = {

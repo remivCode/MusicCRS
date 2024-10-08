@@ -1,6 +1,6 @@
-from dialoguekit.platforms import FlaskSocketPlatform
+from custom_platform import CustomPlatform
 from agent import PlaylistAgent
 
-platform = FlaskSocketPlatform(PlaylistAgent)
+platform = CustomPlatform(PlaylistAgent)
 
 platform.start()
