@@ -21,9 +21,8 @@ export default function Playlist() {
     });
 
     socket?.on("playlist", (data: Song[]) => { // Errors here
-      setPlaylist((prevPlaylist) => [...prevPlaylist, ...data]);
+      setPlaylist(data);
     });
-
   });
 
   const handleAgentAddSong = (annotations: Annotation[]) => {
