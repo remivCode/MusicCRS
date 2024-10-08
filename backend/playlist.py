@@ -43,11 +43,14 @@ class Playlist():
             'WHERE playlist_songs.playlist_id = ?', (playlist_id,))
         return cursor.fetchall()
     
-    def read_album_from_song(self, song_id, data: list[str] = ("*")):
+    def read_album_from_song(self, song_title, data: list[str] = ("*")):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT ' + ', '.join(data) + ' FROM albums ' +
-            'INNER JOIN songs ON albums.album_id = songs.album_id ' +
-            'WHERE song_id = ?', (song_id,))
+        cursor.execute('''
+        SELECT DISTINCT ''' + ', '.join(data) + '''
+        FROM albums
+        INNER JOIN songs ON albums.album_id = songs.album_id
+        WHERE songs.title = ?
+    ''', (song_title,))
         return cursor.fetchall()
     
     def init_db(self):
