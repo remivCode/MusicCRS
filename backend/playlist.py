@@ -1,6 +1,9 @@
 from typing import List
-from song import Song
+
 import sqlite3
+import musicbrainzngs
+import time
+import json
 
 class Playlist():
     def __init__(self, id, name="music.db", init=True):
@@ -27,7 +30,7 @@ class Playlist():
         cursor.execute('UPDATE ' + table + ' SET ' + ', '.join([key + ' = ?' for key in data.keys()]) + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(data.values()) + tuple(where.values()))
         self.conn.commit()
 
-    def read(self, table: str, data: list[str], where: dict[str, str] = {}):
+    def read(self, table: str, data: list[str] = ("*"), where: dict[str, str] = {}):
         print(f"data: {', '.join(data)}")
         print(f"where: {' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values())}")
         cursor = self.conn.cursor()
@@ -58,7 +61,7 @@ class Playlist():
         cursor = self.conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS artists (
-                artist_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                artist_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 total_albums INTEGER
             );
@@ -66,7 +69,7 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS albums (
-                album_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                album_id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 artist_id INTEGER,
                 genre TEXT,
@@ -78,7 +81,7 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS songs (
-                song_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                song_id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 album_id INTEGER,
                 artist_id INTEGER,
@@ -96,7 +99,7 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS playlist_songs (
-                playlist_id INTEGER,
+                playlist_id TEXT,
                 song_id INTEGER,
                 FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id),
                 FOREIGN KEY (song_id) REFERENCES songs(song_id),
@@ -161,3 +164,73 @@ class Playlist():
         cursor.executemany('INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?);', playlist_songs)
 
         self.conn.commit()
+
+    def fetch_recordings(self, limit=1100000, batch_size=100, sleep_time=1.0):  
+        musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
+
+        recordings = []
+        offset = 0
+        
+        while len(recordings) < limit:
+            try:
+                # Search for recordings with pagination
+                result = musicbrainzngs.search_recordings(limit=batch_size, offset=offset, country=["GB"], type="recording", status="official", format="CD")
+                recordings_batch = result['recording-list']
+                
+                if not recordings_batch:
+                    print("No more recordings found, stopping.")
+                    break
+
+                recordings.extend(recordings_batch)
+                print(f"Fetched {len(recordings)} recordings so far.")
+                
+                # Increment offset for pagination
+                offset += batch_size
+                
+                # Sleep to respect rate limits
+                time.sleep(sleep_time)
+                
+            except musicbrainzngs.WebServiceError as e:
+                print(f"Error fetching data: {e}")
+                time.sleep(5)  # Wait and retry in case of an error
+
+        return recordings
+
+    def populate_data(self):
+        print("Populating data...")
+        cursor = self.conn.cursor()
+
+        recordings = self.fetch_recordings(limit=1000, batch_size=100)
+        for recording in recordings:
+            try:
+                record_id = recording['id']
+                record_title = recording['title']
+                artist_id = recording['artist-credit'][0]['artist']['id']
+                artist_name = recording['artist-credit'][0]['artist']['name']
+                album_id = recording['release-list'][0]['id']
+                album_name = recording['release-list'][0]['title']
+                album_date = recording['release-list'][0]['date']
+
+                artist_record = self.read(table='artists', where={'artist_id': artist_id})
+                if not artist_record:
+                    cursor.execute('INSERT INTO artists (artist_id, name, total_albums) VALUES (?, ?, ?);', (artist_id, artist_name, 0))
+                
+                album_record = self.read(table='albums', where={'album_id': album_id})
+                if not album_record:
+                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, genre, release_date, total_songs) VALUES (?, ?, ?, ?, ?, ?);', (album_id, album_name, artist_id, 'Unknown', album_date, 0))
+                    cursor.execute('UPDATE artists SET total_albums = total_albums + 1 WHERE artist_id = ?;', (artist_id,))
+
+                song_record = self.read(table='songs', where={'song_id': record_id})
+                if not song_record:
+                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id) VALUES (?, ?, ?, ?);', (record_id, record_title, album_id, artist_id))
+                    cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
+
+            except Exception as e:
+                print(f"Error populating data: {e}")
+                continue
+            
+        self.conn.commit()
+
+
+    
+    

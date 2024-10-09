@@ -1,1 +1,2 @@
 dialoguekit==0.0.9
+musicbrainzngs==0.7.1
