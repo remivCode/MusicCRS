@@ -172,12 +172,15 @@ class Playlist():
 
     def extract_kaggle_data(self):
         download_path = "./archive.zip"
-        # curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
-        # result = subprocess.run(curl_command, check=True)
-        zip_path = os.path.expanduser("./archive.zip")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall("extracted_files")
+        if not os.path.exists(download_path):
+            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
+            result = subprocess.run(curl_command, check=True)
+
         csv_path = os.path.join(os.path.expanduser("extracted_files"), 'spotify_songs.csv')
+        if not os.path.exists(csv_path):
+            zip_path = os.path.expanduser("./archive.zip")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall("extracted_files")
         data = pd.read_csv(csv_path)
         return data['track_artist'].unique()
 
