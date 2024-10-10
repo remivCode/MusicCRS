@@ -4,6 +4,11 @@ import sqlite3
 import musicbrainzngs
 import time
 import json
+import subprocess
+import zipfile
+import os
+import pandas as pd
+
 
 class Playlist():
     def __init__(self, id, name="music.db", init=True):
@@ -31,14 +36,11 @@ class Playlist():
         self.conn.commit()
 
     def read(self, table: str, data: list[str] = ("*"), where: dict[str, str] = {}):
-        print(f"data: {', '.join(data)}")
-        print(f"where: {' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values())}")
         cursor = self.conn.cursor()
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM ' + table + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values()))
         return cursor.fetchall()
 
     def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
-        print(f"read from playlist data: {', '.join(data)}")
         cursor = self.conn.cursor()
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM songs ' +
             'INNER JOIN playlist_songs ON songs.song_id = playlist_songs.song_id ' +
@@ -165,21 +167,36 @@ class Playlist():
 
         self.conn.commit()
 
-    def fetch_recordings(self, limit=1100000, batch_size=100, sleep_time=1.0):  
+
+    def extract_kaggle_data(self):
+        download_path = "./archive.zip"
+        curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
+        result = subprocess.run(curl_command, check=True)
+        zip_path = os.path.expanduser("./archive.zip")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall("extracted_files")
+        csv_path = os.path.join(os.path.expanduser("extracted_files"), 'spotify_songs.csv')
+        data = pd.read_csv(csv_path)
+        return data['track_artist'].unique()
+
+
+    def fetch_recordings(self,batch_size=100, sleep_time=1.0):  
         musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
 
         recordings = []
         offset = 0
-        
-        while len(recordings) < limit:
+        artist_names=self.extract_kaggle_data()
+        for i,name in enumerate(artist_names):
+            if i >20:
+                break
             try:
-                # Search for recordings with pagination
-                result = musicbrainzngs.search_recordings(limit=batch_size, offset=offset, country=["GB"], type="recording", status="official", format="CD")
+                print(f"Fetching recordings for {name}...")
+                result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
                 recordings_batch = result['recording-list']
-                
+                    
                 if not recordings_batch:
-                    print("No more recordings found, stopping.")
-                    break
+                    print("No more recordings found, continue.")
+                    continue
 
                 recordings.extend(recordings_batch)
                 print(f"Fetched {len(recordings)} recordings so far.")
@@ -200,7 +217,7 @@ class Playlist():
         print("Populating data...")
         cursor = self.conn.cursor()
 
-        recordings = self.fetch_recordings(limit=1000, batch_size=100)
+        recordings = self.fetch_recordings(batch_size=100)
         for recording in recordings:
             try:
                 record_id = recording['id']
@@ -231,6 +248,3 @@ class Playlist():
             
         self.conn.commit()
 
-
-    
-    
