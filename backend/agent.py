@@ -127,35 +127,20 @@ class PlaylistAgent(Agent):
                     artist = parts[1].strip('"')
 
                     song = Song(title=title, artist=artist, album=None)
-
-                    # Ajout de la chanson à la base de données
-                    artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
-                    if not artist_record:
-                        # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
-                        self.db.create(table='artists', data={'name': artist})
+                    try:
                         artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
-
-                    print(f"artist_record: {artist_record}")
-                    artist_id = artist_record[0][0]
-
-                    album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
-                    if not album_record:
-                        if not song.album:
-                            song.album = "Unknown"
-                        self.db.create(table='albums', data={'title': song.album})
-                        album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
-
-                    album_id = album_record[0][0]
-
-                    self.db.create(table='songs', data={'title': title, 'artist_id': artist_id, 'album_id': album_id})
-
-                    song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_id, 'album_id': album_id})
-                    if song_record:
+                        print(f"artist_record: {artist_record}")
+                        artist_id = artist_record[0][0]
+                        song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_id})
                         song_id = song_record[0][0]
                         print(f"Created song: {song_id}")
                         self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
-
-                    response = self.generate_add_response(song)
+                        response = self.generate_add_response(song)
+                    except Exception as e:
+                        response = AnnotatedUtterance(
+                            f"The song \"{title}\" by \"{artist}\" does not exist in the database. Please add it first.",
+                            participant=DialogueParticipant.AGENT,
+                        )
 
                     self._dialogue_connector.register_agent_utterance(response)
                     self.check_for_suggestions()
