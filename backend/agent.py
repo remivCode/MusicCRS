@@ -37,9 +37,9 @@ class PlaylistAgent(Agent):
                 "desc": "Ask about the release date of an album.",
                 "syntax": "date album : <album>",
                 },
-            "genre album": {
-                "desc": "Ask about the genre of an album.",
-                "syntax": "genre album : <album>",
+            "genre song": {
+                "desc": "Ask about the genre of a song.",
+                "syntax": "genre song : <title> - <artist>",
                 },
             "number songs": {
                 "desc": "Ask about the number of songs in an artist.",
@@ -251,25 +251,37 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
             
-            elif "genre album : " in utterance.text:
-                self.used_commands.add("genre album")
-                album_name = utterance.text.split("genre album :")[-1].strip().strip('"').strip("'")
+            elif "genre song : " in utterance.text:
+                self.used_commands.add("genre song")
+                parts = utterance.text[13:].split(' - ')
+                title = parts[0].strip('"').strip("'")
+                artist = parts[1].strip('"').strip("'")
 
                 try:
-                    genre_cursor = self.db.read(table='albums', data=['genre'], where={'title': album_name})
-                    if genre_cursor:
-                        response = AnnotatedUtterance(
-                            f"The genre of '{album_name}' is {genre_cursor[0][0]}.",
-                            participant=DialogueParticipant.AGENT,
-                        )
+                    artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
+                    if artist_record:
+                        artist_id = artist_record[0][0]
+                        genre_cursor = self.db.read(table='songs', data=['genre'], where={'title': title, 'artist_id': artist_id})
+                        print(f"genre_cursor: {genre_cursor}")
+                        if genre_cursor:
+                            response = AnnotatedUtterance(
+                                f"\"{title}\"'s genres are {genre_cursor[0][0]}.",
+                                participant=DialogueParticipant.AGENT,
+                            )
+                        else:
+                            response = AnnotatedUtterance(
+                                f"I don't know the genre of the song '{title}'.",
+                                participant=DialogueParticipant.AGENT,
+                            )
                     else:
                         response = AnnotatedUtterance(
-                            f"I don't know the genre of the album '{album_name}'.",
+                            f"I don't know the artist '{artist}'.",
                             participant=DialogueParticipant.AGENT,
                         )
+
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The album \"{album_name}\" does not exist in the database.",
+                        f"The song \"{title}\" by \"{artist}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
 

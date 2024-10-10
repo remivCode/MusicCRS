@@ -76,7 +76,6 @@ class Playlist():
                 album_id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 artist_id INTEGER,
-                genre TEXT,
                 release_date TEXT,
                 total_songs INTEGER,
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
@@ -89,6 +88,7 @@ class Playlist():
                 title TEXT NOT NULL,
                 album_id INTEGER,
                 artist_id INTEGER,
+                genre TEXT,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id),
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
             );
@@ -235,6 +235,11 @@ class Playlist():
                 album_id = recording['release-list'][0]['id']
                 album_name = recording['release-list'][0]['title']
                 album_date = recording['release-list'][0]['date']
+                if 'tag-list' in recording:
+                    print(f"found genres for {record_title}")
+                    record_genres = [tag['name'] for tag in recording['tag-list']]
+                else:
+                    record_genres = ['unknown']
 
                 artist_record = self.read(table='artists', where={'artist_id': artist_id})
                 if not artist_record:
@@ -242,12 +247,12 @@ class Playlist():
                 
                 album_record = self.read(table='albums', where={'album_id': album_id})
                 if not album_record:
-                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, genre, release_date, total_songs) VALUES (?, ?, ?, ?, ?, ?);', (album_id, album_name, artist_id, 'Unknown', album_date, 0))
+                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, release_date, total_songs) VALUES (?, ?, ?, ?, ?);', (album_id, album_name, artist_id, album_date, 0))
                     cursor.execute('UPDATE artists SET total_albums = total_albums + 1 WHERE artist_id = ?;', (artist_id,))
 
                 song_record = self.read(table='songs', where={'song_id': record_id})
                 if not song_record:
-                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id) VALUES (?, ?, ?, ?);', (record_id, record_title, album_id, artist_id))
+                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id, genre) VALUES (?, ?, ?, ?, ?);', (record_id, record_title, album_id, artist_id, ', '.join(record_genres)))
                     cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
 
             except Exception as e:
