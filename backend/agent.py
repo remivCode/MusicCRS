@@ -130,11 +130,19 @@ class PlaylistAgent(Agent):
                     try:
                         artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
                         artist_id = artist_record[0][0]
-                        song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_id})
+                        song_record = self.db.read(table='songs', data=['song_id', 'album_id'], where={'title': title, 'artist_id': artist_id})
+
+                        album_record = self.db.read(table='albums', data=['title'], where={'album_id': song_record[0][1]})
+                        if album_record:
+                            song.album = album_record[0][0]
+                        else:
+                            song.album = "Unknown"
                         song_id = song_record[0][0]
                         self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+
                         response = self.generate_add_response(song)
                     except Exception as e:
+                        print(e)
                         response = AnnotatedUtterance(
                             f"The song \"{title}\" by \"{artist}\" does not exist in the database.",
                             participant=DialogueParticipant.AGENT,
@@ -165,7 +173,6 @@ class PlaylistAgent(Agent):
                         artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
                         song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_record[0][0]})
                         song_id = song_record[0][0]
-                        playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where={'playlist_id': self.playlist, 'song_id': song_id})
 
                         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
