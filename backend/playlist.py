@@ -19,7 +19,6 @@ class Playlist():
             self.init_db()
 
     def create(self, table: str, data: dict[str, str]):
-        print(f"request: {'INSERT INTO ' + table + ' (' + ', '.join(data.keys()) + ') VALUES (' + ', '.join(['?'] * len(data)) + ')', tuple(data.values())}")
         cursor = self.conn.cursor()
         cursor.execute('INSERT INTO ' + table + ' (' + ', '.join(data.keys()) + ') VALUES (' + ', '.join(['?'] * len(data)) + ')', tuple(data.values()))
         self.conn.commit()
@@ -37,7 +36,10 @@ class Playlist():
 
     def read(self, table: str, data: list[str] = ("*"), where: dict[str, str] = {}):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT ' + ', '.join(data) + ' FROM ' + table + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values()))
+        request = 'SELECT ' + ', '.join(data) + ' FROM ' + table
+        if where:
+            request += ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()])
+        cursor.execute(request, tuple(where.values()))
         return cursor.fetchall()
 
     def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
@@ -170,8 +172,8 @@ class Playlist():
 
     def extract_kaggle_data(self):
         download_path = "./archive.zip"
-        curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
-        result = subprocess.run(curl_command, check=True)
+        # curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
+        # result = subprocess.run(curl_command, check=True)
         zip_path = os.path.expanduser("./archive.zip")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall("extracted_files")
@@ -180,36 +182,42 @@ class Playlist():
         return data['track_artist'].unique()
 
 
-    def fetch_recordings(self,batch_size=100, sleep_time=1.0):  
+    def fetch_recordings(self, limit=1000000, batch_size=100, sleep_time=1.0):  
         musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
 
         recordings = []
-        offset = 0
+        
         artist_names=self.extract_kaggle_data()
         for i,name in enumerate(artist_names):
-            if i >20:
+            if len(recordings) >= limit:
                 break
-            try:
-                print(f"Fetching recordings for {name}...")
-                result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
-                recordings_batch = result['recording-list']
-                    
-                if not recordings_batch:
-                    print("No more recordings found, continue.")
-                    continue
+            offset = 0
+            while(offset < 300 and len(recordings) < limit):
+                try:
+                    print(f"Fetching recordings for {name}...")
+                    result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
+                    recordings_batch = result['recording-list']
 
-                recordings.extend(recordings_batch)
-                print(f"Fetched {len(recordings)} recordings so far.")
-                
-                # Increment offset for pagination
-                offset += batch_size
-                
-                # Sleep to respect rate limits
-                time.sleep(sleep_time)
-                
-            except musicbrainzngs.WebServiceError as e:
-                print(f"Error fetching data: {e}")
-                time.sleep(5)  # Wait and retry in case of an error
+                    if not recordings_batch:
+                        print("No more recordings found, continue.")
+                        break
+
+                    if recordings_batch[0]['artist-credit'][0]['artist']['name'] != name:
+                        print("No more recordings found, continue.")
+                        break
+
+                    recordings.extend(recordings_batch)
+                    print(f"Fetched {len(recordings)} recordings so far.")
+                    
+                    # Increment offset for pagination
+                    offset += batch_size
+                    
+                    # Sleep to respect rate limits
+                    time.sleep(sleep_time)
+                    
+                except musicbrainzngs.WebServiceError as e:
+                    print(f"Error fetching data: {e}")
+                    time.sleep(5)  # Wait and retry in case of an error
 
         return recordings
 
@@ -217,7 +225,7 @@ class Playlist():
         print("Populating data...")
         cursor = self.conn.cursor()
 
-        recordings = self.fetch_recordings(batch_size=100)
+        recordings = self.fetch_recordings(limit=1000,batch_size=100)
         for recording in recordings:
             try:
                 record_id = recording['id']
@@ -243,8 +251,10 @@ class Playlist():
                     cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
 
             except Exception as e:
-                print(f"Error populating data: {e}")
+                print(f"Error populating data: {e}\nrecording: {recording}")
                 continue
-            
+        
+        res = cursor.execute('SELECT COUNT(*) FROM songs;')
+        print(f"Total songs added: {res.fetchone()[0]}")
         self.conn.commit()
 
