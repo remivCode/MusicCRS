@@ -7,6 +7,8 @@ from dialoguekit.core.intent import Intent
 from playlist import Playlist
 import uuid
 import os
+import time
+from threading import Thread
 import random
 from song import Song
 
@@ -71,6 +73,7 @@ class PlaylistAgent(Agent):
                 suggestion_text,
                 participant=DialogueParticipant.AGENT,
             )
+            time.sleep(0.5)
             self._dialogue_connector.register_agent_utterance(response)
 
     def get_commands(self) -> list:
@@ -107,7 +110,7 @@ class PlaylistAgent(Agent):
 
     def check_for_suggestions(self):
         if self.interaction_count % 3 == 0:
-            self.introduce_new_features()
+            Thread(target=self.introduce_new_features).start()
 
     def receive_utterance(self, utterance: Utterance) -> None:
         """Gets called each time there is a new user utterance."""
