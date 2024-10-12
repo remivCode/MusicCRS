@@ -238,6 +238,10 @@ class Playlist():
                 album_id = recording['release-list'][0]['id']
                 album_name = recording['release-list'][0]['title']
                 album_date = recording['release-list'][0]['date']
+                album_type = recording['release-list'][0]['release-group']['primary-type']
+                if album_type != 'Album' and album_type != 'EP' and album_type != 'Single':
+                    print(f"Skipping {record_title}, not an album or EP or Single")
+                    continue
                 if 'tag-list' in recording:
                     print(f"found genres for {record_title}")
                     record_genres = [tag['name'] for tag in recording['tag-list']]

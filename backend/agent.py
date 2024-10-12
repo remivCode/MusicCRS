@@ -405,9 +405,6 @@ class PlaylistAgent(Agent):
                 self._dialogue_connector.register_agent_utterance(response)
                 self.check_for_suggestions()
                 return
-            
-            if self.interaction_count % 1 == 0:
-                self.introduce_new_features()
 
         except IndexError as e:
             print(f"Error while processing user utterance: {e}")
