@@ -58,9 +58,10 @@ class CustomPlatform(FlaskSocketPlatform):
             self.db = Playlist(id=uuid.uuid4().hex, init=False)
         else:
             self.db = Playlist(id=uuid.uuid4().hex)
+            self.db.populate_data()
 
         self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
-        self.db.insert_data(playlist=self.playlist)
+        # self.db.insert_data(playlist=self.playlist)
 
     def connect(self, user_id: str) -> None:
         """Connects a user to an agent.

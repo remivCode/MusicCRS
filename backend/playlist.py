@@ -1,6 +1,14 @@
 from typing import List
-from song import Song
+
 import sqlite3
+import musicbrainzngs
+import time
+import json
+import subprocess
+import zipfile
+import os
+import pandas as pd
+
 
 class Playlist():
     def __init__(self, id, name="music.db", init=True):
@@ -11,7 +19,6 @@ class Playlist():
             self.init_db()
 
     def create(self, table: str, data: dict[str, str]):
-        print(f"request: {'INSERT INTO ' + table + ' (' + ', '.join(data.keys()) + ') VALUES (' + ', '.join(['?'] * len(data)) + ')', tuple(data.values())}")
         cursor = self.conn.cursor()
         cursor.execute('INSERT INTO ' + table + ' (' + ', '.join(data.keys()) + ') VALUES (' + ', '.join(['?'] * len(data)) + ')', tuple(data.values()))
         self.conn.commit()
@@ -27,15 +34,15 @@ class Playlist():
         cursor.execute('UPDATE ' + table + ' SET ' + ', '.join([key + ' = ?' for key in data.keys()]) + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(data.values()) + tuple(where.values()))
         self.conn.commit()
 
-    def read(self, table: str, data: list[str], where: dict[str, str] = {}):
-        print(f"data: {', '.join(data)}")
-        print(f"where: {' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values())}")
+    def read(self, table: str, data: list[str] = ("*"), where: dict[str, str] = {}):
         cursor = self.conn.cursor()
-        cursor.execute('SELECT ' + ', '.join(data) + ' FROM ' + table + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(where.values()))
+        request = 'SELECT ' + ', '.join(data) + ' FROM ' + table
+        if where:
+            request += ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()])
+        cursor.execute(request, tuple(where.values()))
         return cursor.fetchall()
 
     def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
-        print(f"read from playlist data: {', '.join(data)}")
         cursor = self.conn.cursor()
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM songs ' +
             'INNER JOIN playlist_songs ON songs.song_id = playlist_songs.song_id ' +
@@ -58,7 +65,7 @@ class Playlist():
         cursor = self.conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS artists (
-                artist_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                artist_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 total_albums INTEGER
             );
@@ -66,10 +73,9 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS albums (
-                album_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                album_id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 artist_id INTEGER,
-                genre TEXT,
                 release_date TEXT,
                 total_songs INTEGER,
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
@@ -78,10 +84,11 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS songs (
-                song_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                song_id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 album_id INTEGER,
                 artist_id INTEGER,
+                genre TEXT,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id),
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
             );
@@ -96,7 +103,7 @@ class Playlist():
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS playlist_songs (
-                playlist_id INTEGER,
+                playlist_id TEXT,
                 song_id INTEGER,
                 FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id),
                 FOREIGN KEY (song_id) REFERENCES songs(song_id),
@@ -161,3 +168,105 @@ class Playlist():
         cursor.executemany('INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?);', playlist_songs)
 
         self.conn.commit()
+
+
+    def extract_kaggle_data(self):
+        download_path = "./archive.zip"
+        if not os.path.exists(download_path):
+            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
+            result = subprocess.run(curl_command, check=True)
+
+        csv_path = os.path.join(os.path.expanduser("extracted_files"), 'spotify_songs.csv')
+        if not os.path.exists(csv_path):
+            zip_path = os.path.expanduser("./archive.zip")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall("extracted_files")
+        data = pd.read_csv(csv_path)
+        return data['track_artist'].unique()
+
+
+    def fetch_recordings(self, limit=1000000, batch_size=100, sleep_time=1.0):  
+        musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
+
+        recordings = []
+        
+        artist_names=self.extract_kaggle_data()
+        for i,name in enumerate(artist_names):
+            if len(recordings) >= limit:
+                break
+            offset = 0
+            while(offset < 300 and len(recordings) < limit):
+                try:
+                    print(f"Fetching recordings for {name}...")
+                    result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
+                    recordings_batch = result['recording-list']
+
+                    if not recordings_batch:
+                        print("No more recordings found, continue.")
+                        break
+
+                    if recordings_batch[0]['artist-credit'][0]['artist']['name'] != name:
+                        print("No more recordings found, continue.")
+                        break
+
+                    recordings.extend(recordings_batch)
+                    print(f"Fetched {len(recordings)} recordings so far.")
+                    
+                    # Increment offset for pagination
+                    offset += batch_size
+                    
+                    # Sleep to respect rate limits
+                    time.sleep(sleep_time)
+                    
+                except musicbrainzngs.WebServiceError as e:
+                    print(f"Error fetching data: {e}")
+                    time.sleep(5)  # Wait and retry in case of an error
+
+        return recordings
+
+    def populate_data(self):
+        print("Populating data...")
+        cursor = self.conn.cursor()
+
+        recordings = self.fetch_recordings(limit=1000,batch_size=100)
+        for recording in recordings:
+            try:
+                record_id = recording['id']
+                record_title = recording['title']
+                artist_id = recording['artist-credit'][0]['artist']['id']
+                artist_name = recording['artist-credit'][0]['artist']['name']
+                album_id = recording['release-list'][0]['id']
+                album_name = recording['release-list'][0]['title']
+                album_date = recording['release-list'][0]['date']
+                album_type = recording['release-list'][0]['release-group']['primary-type']
+                if album_type != 'Album' and album_type != 'EP' and album_type != 'Single':
+                    print(f"Skipping {record_title}, not an album or EP or Single")
+                    continue
+                if 'tag-list' in recording:
+                    print(f"found genres for {record_title}")
+                    record_genres = [tag['name'] for tag in recording['tag-list']]
+                else:
+                    record_genres = ['unknown']
+
+                artist_record = self.read(table='artists', where={'artist_id': artist_id})
+                if not artist_record:
+                    cursor.execute('INSERT INTO artists (artist_id, name, total_albums) VALUES (?, ?, ?);', (artist_id, artist_name, 0))
+                
+                album_record = self.read(table='albums', where={'album_id': album_id})
+                if not album_record:
+                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, release_date, total_songs) VALUES (?, ?, ?, ?, ?);', (album_id, album_name, artist_id, album_date, 0))
+                    cursor.execute('UPDATE artists SET total_albums = total_albums + 1 WHERE artist_id = ?;', (artist_id,))
+
+                song_record = self.read(table='songs', where={'song_id': record_id})
+                if not song_record:
+                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id, genre) VALUES (?, ?, ?, ?, ?);', (record_id, record_title, album_id, artist_id, ', '.join(record_genres)))
+                    cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
+
+            except Exception as e:
+                print(f"Error populating data: {e}\nrecording: {recording}")
+                continue
+        
+        res = cursor.execute('SELECT COUNT(*) FROM songs;')
+        print(f"Total songs added: {res.fetchone()[0]}")
+        self.conn.commit()
+
