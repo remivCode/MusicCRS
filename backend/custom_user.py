@@ -1,5 +1,6 @@
 from dialoguekit.participant.user import User, UserType
 from playlist import Playlist
+import logging
 
 class CustomUser(User):
     def __init__(self, id: str, user_type: UserType = UserType.HUMAN) -> None:
@@ -11,5 +12,5 @@ class CustomUser(User):
         self._playlist = playlist_id
         self._db = db
 
-        print(f"user playlist id {self._playlist}")
+        logging.debug(f"user playlist id {self._playlist}")
 

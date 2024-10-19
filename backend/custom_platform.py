@@ -2,6 +2,7 @@ from __future__ import annotations
 import os, uuid
 
 from flask import request
+import logging
 
 from dialoguekit.platforms.flask_socket_platform import FlaskSocketPlatform, logger, SocketIORequest, ChatNamespace
 from dialoguekit.connector import DialogueConnector
@@ -32,8 +33,8 @@ class CustomMessage:
         Returns:
             An instance of Message.
         """
-        print("Converting message...")
-        print(utterance.annotations)
+        logging.info("Converting message...")
+        logging.debug(utterance.annotations)
         message = CustomMessage(utterance.text)
         if isinstance(utterance, AnnotatedUtterance):
             message.intent = str(utterance.intent)
@@ -41,7 +42,7 @@ class CustomMessage:
                         {"slot": annotation.slot, "value": annotation.value}
                         for annotation in utterance.annotations
                     ]
-        print(message)
+        logging.debug(message)
         return message
 
 @dataclass
@@ -69,7 +70,7 @@ class CustomPlatform(FlaskSocketPlatform):
         Args:
             user_id: User ID.
         """
-        print("Connecting...")
+        logging.info("Connecting...")
         self._active_users[user_id] = CustomUser(user_id)
 
         agent = self.get_new_agent()
@@ -80,7 +81,7 @@ class CustomPlatform(FlaskSocketPlatform):
         user = self._active_users[user_id]
         user.connect_playlist(self.playlist, self.db)
     
-        print(f"platform playlist id {self.playlist}")
+        logging.debug(f"platform playlist id {self.playlist}")
 
         songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.title', 'artists.name', 'albums.title'))
         song_data = [{"title": song[0], "artist": song[1], "album": song[2]} for song in songs]
@@ -100,7 +101,7 @@ class CustomPlatform(FlaskSocketPlatform):
             host: Hostname.
             port: Port.
         """
-        print("Starting namespace...")
+        logging.info("Starting namespace...")
         self.socketio.on_namespace(CustomNamespace("/", self))
         self.socketio.run(self.app, host=host, port=port)
 
@@ -126,11 +127,11 @@ class CustomPlatform(FlaskSocketPlatform):
             song_record = self.db.read(table='songs', data=['song_id'], where={'title': song.title, 'artist_id': artist_record[0][0]})
             song_id = song_record[0][0]
             playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where={'playlist_id': self.playlist, 'song_id': song_id})
-            print(f"deleted playlist_song _record: {playlist_song_record}")
+            logging.debug(f"deleted playlist_song _record: {playlist_song_record}")
             self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             
 
     def add(self, user_id: str, add: dict) -> None:
@@ -177,7 +178,7 @@ class CustomNamespace(ChatNamespace):
         logger.info(f"Message received: {data}")
 
     def on_add(self, data: dict) -> None:
-        print("Adding song...")
+        logging.info("Adding song...")
         req: SocketIORequest = cast(SocketIORequest, request)
         self._platform.add(req.sid, data["add"])
         logger.info(f"Message received: {data}")

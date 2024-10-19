@@ -6,7 +6,7 @@ from dialoguekit.participant.participant import DialogueParticipant
 from dialoguekit.core.intent import Intent
 from playlist import Playlist
 import uuid
-import os
+import logging
 import time
 from threading import Thread
 import random
@@ -106,7 +106,7 @@ class PlaylistAgent(Agent):
         self.playlist = playlist
         self.db = db
 
-        print(f"agent playlist id {self.playlist}")
+        logging.debug(f"agent playlist id {self.playlist}")
 
     def check_for_suggestions(self):
         if self.interaction_count % 3 == 0:
@@ -115,7 +115,7 @@ class PlaylistAgent(Agent):
     def receive_utterance(self, utterance: Utterance) -> None:
         """Gets called each time there is a new user utterance."""
         self.interaction_count += 1
-        print(f"interaction_count: {self.interaction_count}")
+        logging.debug(f"interaction_count: {self.interaction_count}")
 
         if utterance.text == "EXIT":
             self.goodbye()
@@ -145,7 +145,7 @@ class PlaylistAgent(Agent):
 
                         response = self.generate_add_response(song)
                     except Exception as e:
-                        print(e)
+                        logging.error(e)
                         response = AnnotatedUtterance(
                             f"The song \"{title}\" by \"{artist}\" does not exist in the database.",
                             participant=DialogueParticipant.AGENT,
@@ -181,7 +181,7 @@ class PlaylistAgent(Agent):
 
                         response = self.generate_remove_response(song)
                     except Exception as e:
-                        print(f"Error: {e}")
+                        logging.error(f"Error: {e}")
                         response = AnnotatedUtterance(
                             f"{title} by {artist} not found in the playlist.",
                             participant=DialogueParticipant.AGENT,
@@ -197,10 +197,10 @@ class PlaylistAgent(Agent):
 
             elif utterance.text.startswith("show"):
                 self.used_commands.add("show")
-                print(f"playlist: {self.playlist}")
+                logging.debug(f"playlist: {self.playlist}")
                 songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.title', 'artists.name'))
                 text = ""
-                print(f"songs: {songs}")
+                logging.debug(f"songs: {songs}")
                 for song in songs:
                     text += f"{song[0]} by {song[1]}\n"  # song[0] est le titre, song[1] l'ID de l'artiste
 
@@ -265,7 +265,7 @@ class PlaylistAgent(Agent):
                     if artist_record:
                         artist_id = artist_record[0][0]
                         genre_cursor = self.db.read(table='songs', data=['genre'], where={'title': title, 'artist_id': artist_id})
-                        print(f"genre_cursor: {genre_cursor}")
+                        logging.debug(f"genre_cursor: {genre_cursor}")
                         if genre_cursor:
                             response = AnnotatedUtterance(
                                 f"\"{title}\"'s genres are {genre_cursor[0][0]}.",
@@ -407,7 +407,7 @@ class PlaylistAgent(Agent):
                 return
 
         except IndexError as e:
-            print(f"Error while processing user utterance: {e}")
+            logging.error(f"Error while processing user utterance: {e}")
             response = AnnotatedUtterance(
                 "I don't understand. Please make sure you have the correct format.",
                 participant=DialogueParticipant.AGENT,

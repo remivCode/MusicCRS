@@ -1,6 +1,13 @@
 from custom_platform import CustomPlatform
 from agent import PlaylistAgent
 
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,  # Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Format of log messages
+)
+
 platform = CustomPlatform(PlaylistAgent)
 
 platform.start()

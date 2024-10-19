@@ -3,11 +3,11 @@ from typing import List
 import sqlite3
 import musicbrainzngs
 import time
-import json
 import subprocess
 import zipfile
 import os
 import pandas as pd
+import logging
 
 
 class Playlist():
@@ -114,7 +114,7 @@ class Playlist():
         self.conn.commit()
 
     def insert_data(self, playlist: int = 1):
-        print("Inserting data...")
+        logging.info("Inserting data...")
         cursor = self.conn.cursor()
         # Ajouter des artistes
         artists = [
@@ -171,18 +171,20 @@ class Playlist():
 
 
     def extract_kaggle_data(self):
-        download_path = "./archive.zip"
+        os.makedirs("./data/kaggle_artists", exist_ok=True)
+        download_path = "./data/kaggle_artists/kaggle_archive.zip"
         if not os.path.exists(download_path):
-            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
+            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs", "--ssl-no-revoke"]
             result = subprocess.run(curl_command, check=True)
 
-        csv_path = os.path.join(os.path.expanduser("extracted_files"), 'spotify_songs.csv')
+        os.makedirs(os.path.join("data", "kaggle_artists"), exist_ok=True)
+        csv_path = os.path.join("data", "kaggle_artists", 'spotify_songs.csv')
         if not os.path.exists(csv_path):
-            zip_path = os.path.expanduser("./archive.zip")
+            zip_path = os.path.expanduser(download_path)
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall("extracted_files")
+                zip_ref.extractall(os.path.join("data", "kaggle_artists"))
         data = pd.read_csv(csv_path)
-        return data['track_artist'].unique()
+        return data['track_artist'].unique().tolist()
 
 
     def fetch_recordings(self, limit=1000000, batch_size=100, sleep_time=1.0):  
@@ -197,20 +199,20 @@ class Playlist():
             offset = 0
             while(offset < 300 and len(recordings) < limit):
                 try:
-                    print(f"Fetching recordings for {name}...")
+                    logging.info(f"Fetching recordings for {name}...")
                     result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
                     recordings_batch = result['recording-list']
 
                     if not recordings_batch:
-                        print("No more recordings found, continue.")
+                        logging.info("No more recordings found, continue.")
                         break
 
                     if recordings_batch[0]['artist-credit'][0]['artist']['name'] != name:
-                        print("No more recordings found, continue.")
+                        logging.info("No more recordings found, continue.")
                         break
 
                     recordings.extend(recordings_batch)
-                    print(f"Fetched {len(recordings)} recordings so far.")
+                    logging.info(f"Fetched {len(recordings)} recordings so far.")
                     
                     # Increment offset for pagination
                     offset += batch_size
@@ -219,13 +221,13 @@ class Playlist():
                     time.sleep(sleep_time)
                     
                 except musicbrainzngs.WebServiceError as e:
-                    print(f"Error fetching data: {e}")
+                    logging.error(f"Error fetching data: {e}")
                     time.sleep(5)  # Wait and retry in case of an error
 
         return recordings
 
     def populate_data(self):
-        print("Populating data...")
+        logging.info("Populating data...")
         cursor = self.conn.cursor()
 
         recordings = self.fetch_recordings(limit=1000,batch_size=100)
@@ -240,10 +242,10 @@ class Playlist():
                 album_date = recording['release-list'][0]['date']
                 album_type = recording['release-list'][0]['release-group']['primary-type']
                 if album_type != 'Album' and album_type != 'EP' and album_type != 'Single':
-                    print(f"Skipping {record_title}, not an album or EP or Single")
+                    logging.info(f"Skipping {record_title}, not an album or EP or Single")
                     continue
                 if 'tag-list' in recording:
-                    print(f"found genres for {record_title}")
+                    logging.debug(f"found genres for {record_title}")
                     record_genres = [tag['name'] for tag in recording['tag-list']]
                 else:
                     record_genres = ['unknown']
@@ -263,10 +265,11 @@ class Playlist():
                     cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
 
             except Exception as e:
-                print(f"Error populating data: {e}\nrecording: {recording}")
+                recording = str(recording).encode('utf-8', errors='replace').decode('utf-8')
+                logging.error(f"Error populating data: {e}\nrecording: {recording}")
                 continue
         
         res = cursor.execute('SELECT COUNT(*) FROM songs;')
-        print(f"Total songs added: {res.fetchone()[0]}")
+        logging.info(f"Total songs added: {res.fetchone()[0]}")
         self.conn.commit()
 
