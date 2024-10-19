@@ -1,3 +1,5 @@
 dialoguekit==0.0.9
 musicbrainzngs==0.7.1
 pandas==2.2.3
+spotipy==2.24.0
+python-dotenv==1.0.1
