@@ -7,8 +7,20 @@ import subprocess
 import zipfile
 import os
 import pandas as pd
+import random
 import logging
 
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
+from dotenv import load_dotenv
+
+load_dotenv()
+client_id = os.environ.get("SPOTIPY_CLIENT_ID")
+client_secret = os.environ.get("SPOTIPY_CLIENT_SECRET")
+
+auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+sp = spotipy.Spotify(auth_manager=auth_manager, requests_timeout=10, retries=0, backoff_factor=0.6, status_retries=0)
 
 class Playlist():
     def __init__(self, id, name="music.db", init=True):
@@ -67,7 +79,9 @@ class Playlist():
             CREATE TABLE IF NOT EXISTS artists (
                 artist_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                total_albums INTEGER
+                total_albums INTEGER,
+                genre TEXT,
+                popularity INTEGER
             );
         ''')
 
@@ -78,6 +92,8 @@ class Playlist():
                 artist_id INTEGER,
                 release_date TEXT,
                 total_songs INTEGER,
+                genre TEXT,
+                popularity INTEGER,
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
             );
         ''')
@@ -88,7 +104,21 @@ class Playlist():
                 title TEXT NOT NULL,
                 album_id INTEGER,
                 artist_id INTEGER,
-                genre TEXT,
+                duration_ms INTEGER,
+                featuring TEXT,
+                GENRE TEXT,
+                acousticness FLOAT,
+                danceability FLOAT,
+                energy FLOAT,
+                instrumentalness FLOAT,
+                key INTEGER,
+                liveness FLOAT,
+                loudness FLOAT,
+                mode INTEGER,
+                speechiness FLOAT,
+                tempo FLOAT,
+                time_signature INTEGER,
+                valence FLOAT,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id),
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
             );
@@ -186,90 +216,127 @@ class Playlist():
         data = pd.read_csv(csv_path)
         return data['track_artist'].unique().tolist()
 
+    def safe_call_api(self, method):
+        max_retries = 5
+        retry_delay = 0
+        for attempt in range(max_retries):
+            try:
+                result = method()
+                time.sleep(0.4)
+                return result
+            except spotipy.exceptions.SpotifyException as e:
+                if e.http_status == 429:
+                    if "Retry-After" in e.headers:
+                        retry_after = e.headers.get("Retry-After")
+                    else:
+                        retry_after = 5
+                    # Exponential backoff
+                    retry_delay += 2**attempt * 0.1 + retry_after
+                    print(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay + random.uniform(0, 1))  # add some jitter to the delay
+                else:
+                    raise e
+        raise Exception("Max retries exceeded")
 
-    def fetch_recordings(self, limit=1000000, batch_size=100, sleep_time=1.0):  
-        musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
+    def populate_data(self, limit=1000000, artist_limit=300): 
+        logging.info("Populating data...") 
+        cursor = self.conn.cursor()
 
-        recordings = []
+        tracks = []
+        counter = 0
         
         artist_names=self.extract_kaggle_data()
         for i,name in enumerate(artist_names):
-            if len(recordings) >= limit:
-                break
-            offset = 0
-            while(offset < 300 and len(recordings) < limit):
-                try:
-                    logging.info(f"Fetching recordings for {name}...")
-                    result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
-                    recordings_batch = result['recording-list']
-
-                    if not recordings_batch:
-                        logging.info("No more recordings found, continue.")
-                        break
-
-                    if recordings_batch[0]['artist-credit'][0]['artist']['name'] != name:
-                        logging.info("No more recordings found, continue.")
-                        break
-
-                    recordings.extend(recordings_batch)
-                    logging.info(f"Fetched {len(recordings)} recordings so far.")
-                    
-                    # Increment offset for pagination
-                    offset += batch_size
-                    
-                    # Sleep to respect rate limits
-                    time.sleep(sleep_time)
-                    
-                except musicbrainzngs.WebServiceError as e:
-                    logging.error(f"Error fetching data: {e}")
-                    time.sleep(5)  # Wait and retry in case of an error
-
-        return recordings
-
-    def populate_data(self):
-        logging.info("Populating data...")
-        cursor = self.conn.cursor()
-
-        recordings = self.fetch_recordings(limit=1000,batch_size=100)
-        for recording in recordings:
             try:
-                record_id = recording['id']
-                record_title = recording['title']
-                artist_id = recording['artist-credit'][0]['artist']['id']
-                artist_name = recording['artist-credit'][0]['artist']['name']
-                album_id = recording['release-list'][0]['id']
-                album_name = recording['release-list'][0]['title']
-                album_date = recording['release-list'][0]['date']
-                album_type = recording['release-list'][0]['release-group']['primary-type']
-                if album_type != 'Album' and album_type != 'EP' and album_type != 'Single':
-                    logging.info(f"Skipping {record_title}, not an album or EP or Single")
-                    continue
-                if 'tag-list' in recording:
-                    logging.debug(f"found genres for {record_title}")
-                    record_genres = [tag['name'] for tag in recording['tag-list']]
-                else:
-                    record_genres = ['unknown']
+                logging.info(f"Fetching artist {i+1}/{len(artist_names)}: {name}, {counter} songs added so far")
+                if counter > limit:
+                    break
+                artist_counter = 0
 
-                artist_record = self.read(table='artists', where={'artist_id': artist_id})
-                if not artist_record:
-                    cursor.execute('INSERT INTO artists (artist_id, name, total_albums) VALUES (?, ?, ?);', (artist_id, artist_name, 0))
+                artist_data = {}
+                search = self.safe_call_api(lambda: sp.search(q='artist:' + name, type='artist'))
+                artist_data['id'] = search['artists']['items'][0]['id']
+                artist_data['name'] = search['artists']['items'][0]['name']
+                artist_data['genres'] = search['artists']['items'][0]['genres']
+                artist_data['popularity'] = search['artists']['items'][0]['popularity']
+
+                cursor.execute('INSERT INTO artists (artist_id, name, total_albums, genre, popularity) VALUES (?, ?, ?, ?, ?);', (artist_data['id'], artist_data['name'], 0, ', '.join(artist_data['genres']), artist_data['popularity']))
+
+                artist_albums = self.safe_call_api(lambda: sp.artist_albums(artist_data['id'], limit=40))
+                album_ids = [album['id'] for album in artist_albums['items'] if album['album_type'] != 'compilation']
+                albums = []
+                for i in range(0, len(album_ids), 20):
+                    albums.extend(sp.albums(album_ids[i:i+20])['albums'])
+
+                artist_albums = []
+                for album in albums:
+                    album_data = {}
+                    album_data['id'] = album['id']
+                    album_data['name'] = album['name']
+                    album_data['total_tracks'] = album['total_tracks']
+                    album_data['release_date'] = album['release_date']
+                    album_data['genres'] = ', '.join(album['genres'])
+                    album_data['popularity'] = album['popularity']
+                    album_data['artist_id'] = artist_data['id']
+                    artist_albums.append(album_data)
+
+                    album_tracks = []
+                    for track in album['tracks']['items']:
+                        if counter > limit or artist_counter > artist_limit:
+                            break
+
+                        if track['id'] in [track['id'] for track in tracks]:
+                            continue
+                        track_data = {}
+                        track_data['id'] = track['id'] 
+                        track_data['title'] = track['name']
+                        track_data['featuring'] = ', '.join([artist['name'] for artist in track['artists'] if artist['name'] != artist_data['name']])
+                        track_data['duration_ms'] = track['duration_ms']
+                        track_data['genre'] = album_data['genres']
+                        track_data['artist_id'] = artist_data['id']
+                        track_data['album_id'] = album_data['id']
+                        track_data['artist'] = artist_data
+                        track_data['album'] = album_data
+                        album_tracks.append(track_data)
+
+                    track_features = []
+                    for i in range(0, len(album_tracks), 100):
+                        track_features.extend(self.safe_call_api(lambda: sp.audio_features([track['id'] for track in album_tracks[i:i+100]])))
+
+                    for idx, feature in enumerate(track_features):
+                        try:
+                            album_tracks[idx]['acousticness'] = feature['acousticness']
+                            album_tracks[idx]['danceability'] = feature['danceability']
+                            album_tracks[idx]['energy'] = feature['energy']
+                            album_tracks[idx]['instrumentalness'] = feature['instrumentalness']
+                            album_tracks[idx]['key'] = feature['key']
+                            album_tracks[idx]['liveness'] = feature['liveness']
+                            album_tracks[idx]['loudness'] = feature['loudness']
+                            album_tracks[idx]['mode'] = feature['mode']
+                            album_tracks[idx]['speechiness'] = feature['speechiness']
+                            album_tracks[idx]['tempo'] = feature['tempo']
+                            album_tracks[idx]['time_signature'] = feature['time_signature']
+                            album_tracks[idx]['valence'] = feature['valence']
+                            counter += 1
+                            artist_counter += 1
+                        except Exception as e:
+                            album_tracks.remove(album_tracks[idx])
+                    
+                    tracks.extend(album_tracks)
+
+                    if counter > limit or artist_counter > artist_limit:
+                        break
                 
-                album_record = self.read(table='albums', where={'album_id': album_id})
-                if not album_record:
-                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, release_date, total_songs) VALUES (?, ?, ?, ?, ?);', (album_id, album_name, artist_id, album_date, 0))
-                    cursor.execute('UPDATE artists SET total_albums = total_albums + 1 WHERE artist_id = ?;', (artist_id,))
-
-                song_record = self.read(table='songs', where={'song_id': record_id})
-                if not song_record:
-                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id, genre) VALUES (?, ?, ?, ?, ?);', (record_id, record_title, album_id, artist_id, ', '.join(record_genres)))
-                    cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
-
+                cursor.executemany('INSERT INTO albums (album_id, title, artist_id, release_date, total_songs, genre, popularity) VALUES (:id, :name, :artist_id, :release_date, :total_tracks, :genres, :popularity);', artist_albums)
+                cursor.execute('UPDATE artists SET total_albums = total_albums + ? WHERE artist_id = ?;', (len(album_data), artist_data['id'],))
             except Exception as e:
-                recording = str(recording).encode('utf-8', errors='replace').decode('utf-8')
-                logging.error(f"Error populating data: {e}\nrecording: {recording}")
-                continue
-        
+                logging.error(f"Error fetching data: {e}")
+                time.sleep(1)
+
+        cursor.executemany('INSERT INTO songs (song_id, title, album_id, artist_id, genre, featuring, duration_ms, acousticness, danceability, energy, instrumentalness, key, liveness, loudness, mode, speechiness, tempo, time_signature, valence) VALUES (:id, :title, :album_id, :artist_id, :genre, :featuring, :duration_ms, :acousticness, :danceability, :energy, :instrumentalness, :key, :liveness, :loudness, :mode, :speechiness, :tempo, :time_signature, :valence);', (tracks))
+
         res = cursor.execute('SELECT COUNT(*) FROM songs;')
         logging.info(f"Total songs added: {res.fetchone()[0]}")
         self.conn.commit()
+        cursor.close()
 

@@ -59,7 +59,7 @@ class CustomPlatform(FlaskSocketPlatform):
             self.db = Playlist(id=uuid.uuid4().hex, init=False)
         else:
             self.db = Playlist(id=uuid.uuid4().hex)
-            self.db.populate_data()
+            self.db.populate_data(limit=1000000, artist_limit=300)
 
         self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
         # self.db.insert_data(playlist=self.playlist)
