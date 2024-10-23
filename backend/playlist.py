@@ -221,8 +221,12 @@ class Playlist():
         retry_delay = 0
         for attempt in range(max_retries):
             try:
+                print(f"Call {self.call_count}")
+                if (self.call_count % 500 == 0) and (self.call_count > 0):
+                    time.sleep(30)
                 result = method()
-                time.sleep(0.4)
+                time.sleep(0.06)
+                self.call_count += 1
                 return result
             except spotipy.exceptions.SpotifyException as e:
                 if e.http_status == 429:
@@ -240,6 +244,7 @@ class Playlist():
 
     def populate_data(self, limit=1000000, artist_limit=300): 
         logging.info("Populating data...") 
+        self.call_count = 0
         cursor = self.conn.cursor()
 
         tracks = []

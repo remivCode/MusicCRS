@@ -1,0 +1,107 @@
+{
+  "create-app": {
+    "cookies": {
+      "sp_t": "9e005df7be7fe8203f7fd196e25fa87f",
+      "OptanonAlertBoxClosed": "2024-10-18T16:02:15.995Z",
+      "eupubconsent-v2": "CQGr1jAQGr1jAAcABBENBLFwAAAAAAAAAAYgAAAAAAFhICoACwAKgAeABBADIANAAeABEAD0AH4AZQA54B3AHeAPgAfgBJQDiAIdAWwAvMCSAEzggAYAEgARwBOAJWAYsA_cdAZAAWABUAEEAMgA0AB4AEQAMQAegA_ACcAGUAOeAdwB3gD4AH4ARYAkoBxADqAIdAWwAvMBlgEkAJnDgBQAFwASAA_ACOAQgBKwDBAGLAMmAfuQgEAALADEAHoAc8A7gDvAOoBJACZxAACAwQlANAAWADwAIgAYgB3gD8AOoAh0BbAC8wGWASQAmcSADAAXACOAO4BKwDFgH7lICwACwAKgAggBkAGgAPAAiABiAD8AMoAc4A7wB-AEWAJKAdQA9oCHQFsALzAZYBJACZxQAUABcAEgARwBOADuAO2AwQBiwDJgH7loAIA7gAAA.YAAAAAAAAAAA",
+      "sp_dc": "AQB3pPPCZoB_fnU1jKbvJvRgD2TU0yS_UVPGCR5YF7mJK0MCfOoNFsu5a-e4Pq0NEgGFrfAHIbCbbCtIFqc-YRXgHfOvCgwD7VRO6v8RzL1PyCLyeg5njw4i62KxGVNDJK57xLdyZiHKn04GKKqRdAEkJkvXzH0",
+      "sp_key": "9175a4fd-66ea-446a-9b85-1975107cb04c",
+      "_ga": "GA1.2.1983511299.1729514009",
+      "_ga_VDJZGL4GYV": "GS1.2.1729514009.1.1.1729514110.0.0.0",
+      "OptanonConsent": "isGpcEnabled=0&datestamp=Wed+Oct+23+2024+17%3A33%3A50+GMT%2B0200+(Central+European+Summer+Time)&version=202409.2.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=14464b3d-6e25-4b5a-a9da-88f51fcd77fc&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=s00%3A1%2Cf00%3A0%2Cm00%3A0%2Ct00%3A0%2Cf11%3A0%2Ci00%3A0%2CV2STACK3%3A0%2CV2STACK11%3A0%2CV2STACK20%3A0%2Cm03%3A1&intType=5&geolocation=NO%3B03&AwaitingReconsent=false",
+      "__Host-sp_csrf_sid": "0b31e2d66011737dd2524469caf2280540aa3c392f80eb80ba5667a0b55ea557"
+    },
+    "headers": {
+      "accept": "application/json",
+      "accept-language": "en-US,en;q=0.9,fr;q=0.8",
+      "authorization": "Bearer BQBwqytjFMQwAtRwBLBfSDoEXglb7o1NhgA-cZ8ZJ4g_LA3sGaaEHqsCFis3nIADdmC92oBNreW4X6uKQY6dKLmDDhZ_r5OMdUUqUQFkHtjrddbMYY1sFRqdFJIKceZ0N0x6tUh8X7tqwbVySx1HhKWwi1wLNRexacKNDHzgmqepPP95DfpXYQWAz3RFe9gP9u5MXF0QcRpWe7MnEcC3x4A8MsNFNGwj3h9ZQdoiFjxDhDg6BCFDIJzBUnfMzyC9frJ-PhPi5FnfseBHrsvdHTR6HcV1gTMo0-ToO4EYO53U-zeUiRJIOuKhLBZ81656EX3QRSRcAe5T",
+      "baggage": "sentry-environment=production,sentry-release=9bedf87827a21b79474602b553bee8a50145c97a,sentry-public_key=f4a7c7c55acb47ab8ff900050fce0bd4,sentry-trace_id=7c5cde39fdbb41b480c4da30da312bec,sentry-sample_rate=0.2,sentry-transaction=%2Fdashboard%2Fcreate,sentry-sampled=false",
+      "content-type": "application/json",
+      "origin": "https://developer.spotify.com",
+      "priority": "u=1, i",
+      "referer": "https://developer.spotify.com/dashboard/create",
+      "sec-ch-ua": "'Google Chrome';v='129', 'Not=A?Brand';v='8', 'Chromium';v='129'",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "'Windows'",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "sentry-trace": "7c5cde39fdbb41b480c4da30da312bec-bce0eebb19f7b13b-0",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "x-csrf-token": "013acda719d43ba2507b91f32e1334f510689950b431373239363937363239373730"
+    },
+    "json_data": {
+      "partyUri": "spotify:b2b-party:51I0cY9vGdRQ0FLfJcu1ei",
+      "name": "REPLACE_WITH_APP_NAME",
+      "description": "Music Recommendation System",
+      "website": "",
+      "redirectUris": ["http://localhost:5000"]
+    },
+    "url": "https://developer.spotify.com/api/ws4d/v1/applications"
+  },
+  "get-client-id": {
+    "cookies": {
+      "sp_t": "9e005df7be7fe8203f7fd196e25fa87f",
+      "OptanonAlertBoxClosed": "2024-10-18T16:02:15.995Z",
+      "eupubconsent-v2": "CQGr1jAQGr1jAAcABBENBLFwAAAAAAAAAAYgAAAAAAFhICoACwAKgAeABBADIANAAeABEAD0AH4AZQA54B3AHeAPgAfgBJQDiAIdAWwAvMCSAEzggAYAEgARwBOAJWAYsA_cdAZAAWABUAEEAMgA0AB4AEQAMQAegA_ACcAGUAOeAdwB3gD4AH4ARYAkoBxADqAIdAWwAvMBlgEkAJnDgBQAFwASAA_ACOAQgBKwDBAGLAMmAfuQgEAALADEAHoAc8A7gDvAOoBJACZxAACAwQlANAAWADwAIgAYgB3gD8AOoAh0BbAC8wGWASQAmcSADAAXACOAO4BKwDFgH7lICwACwAKgAggBkAGgAPAAiABiAD8AMoAc4A7wB-AEWAJKAdQA9oCHQFsALzAZYBJACZxQAUABcAEgARwBOADuAO2AwQBiwDJgH7loAIA7gAAA.YAAAAAAAAAAA",
+      "sp_dc": "AQB3pPPCZoB_fnU1jKbvJvRgD2TU0yS_UVPGCR5YF7mJK0MCfOoNFsu5a-e4Pq0NEgGFrfAHIbCbbCtIFqc-YRXgHfOvCgwD7VRO6v8RzL1PyCLyeg5njw4i62KxGVNDJK57xLdyZiHKn04GKKqRdAEkJkvXzH0",
+      "sp_key": "9175a4fd-66ea-446a-9b85-1975107cb04c",
+      "_ga": "GA1.2.1983511299.1729514009",
+      "_ga_VDJZGL4GYV": "GS1.2.1729514009.1.1.1729514110.0.0.0",
+      "OptanonConsent": "isGpcEnabled=0&datestamp=Wed+Oct+23+2024+17%3A33%3A50+GMT%2B0200+(Central+European+Summer+Time)&version=202409.2.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=14464b3d-6e25-4b5a-a9da-88f51fcd77fc&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=s00%3A1%2Cf00%3A0%2Cm00%3A0%2Ct00%3A0%2Cf11%3A0%2Ci00%3A0%2CV2STACK3%3A0%2CV2STACK11%3A0%2CV2STACK20%3A0%2Cm03%3A1&intType=5&geolocation=NO%3B03&AwaitingReconsent=false",
+      "__Host-sp_csrf_sid": "4149716a9d2b304328f6bb9f8cdf5453c3167533c4b7642cbf6af22c87237f59"
+    },
+    "headers": {
+      "accept": "*/*",
+      "accept-language": "en-US,en;q=0.9,fr;q=0.8",
+      "baggage": "sentry-environment=production,sentry-release=9bedf87827a21b79474602b553bee8a50145c97a,sentry-public_key=f4a7c7c55acb47ab8ff900050fce0bd4,sentry-trace_id=f4aaf03a54ef4674830de97cfe7a57ba,sentry-sample_rate=0.2,sentry-transaction=%2Fdashboard%2F%5Bcid%5D%2Fsettings,sentry-sampled=false",
+      "priority": "u=1, i",
+      "referer": "https://developer.spotify.com/dashboard/da1a4950ec914d01a19d7f72612c828d",
+      "sec-ch-ua": "'Google Chrome';v='129', 'Not=A?Brand';v='8', 'Chromium';v='129'",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "'Windows'",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "sentry-trace": "f4aaf03a54ef4674830de97cfe7a57ba-bd20936ab0f8ca85-0",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "x-nextjs-data": "1"
+    },
+    "params": {
+      "cid": "REPLACE_WITH_RESULT_FROM_PREVIOUS_CALL"
+    },
+    "url": "https://developer.spotify.com/_next/data/w52Uu_MYbyjZsPF-A950O/dashboard/REPLACE_WITH_RESULT_FROM_PREVIOUS_CALL/settings.json"
+  },
+  "get-secret-id": {
+    "cookies": {
+      "sp_t": "9e005df7be7fe8203f7fd196e25fa87f",
+      "OptanonAlertBoxClosed": "2024-10-18T16:02:15.995Z",
+      "eupubconsent-v2": "CQGr1jAQGr1jAAcABBENBLFwAAAAAAAAAAYgAAAAAAFhICoACwAKgAeABBADIANAAeABEAD0AH4AZQA54B3AHeAPgAfgBJQDiAIdAWwAvMCSAEzggAYAEgARwBOAJWAYsA_cdAZAAWABUAEEAMgA0AB4AEQAMQAegA_ACcAGUAOeAdwB3gD4AH4ARYAkoBxADqAIdAWwAvMBlgEkAJnDgBQAFwASAA_ACOAQgBKwDBAGLAMmAfuQgEAALADEAHoAc8A7gDvAOoBJACZxAACAwQlANAAWADwAIgAYgB3gD8AOoAh0BbAC8wGWASQAmcSADAAXACOAO4BKwDFgH7lICwACwAKgAggBkAGgAPAAiABiAD8AMoAc4A7wB-AEWAJKAdQA9oCHQFsALzAZYBJACZxQAUABcAEgARwBOADuAO2AwQBiwDJgH7loAIA7gAAA.YAAAAAAAAAAA",
+      "sp_dc": "AQB3pPPCZoB_fnU1jKbvJvRgD2TU0yS_UVPGCR5YF7mJK0MCfOoNFsu5a-e4Pq0NEgGFrfAHIbCbbCtIFqc-YRXgHfOvCgwD7VRO6v8RzL1PyCLyeg5njw4i62KxGVNDJK57xLdyZiHKn04GKKqRdAEkJkvXzH0",
+      "sp_key": "9175a4fd-66ea-446a-9b85-1975107cb04c",
+      "_ga": "GA1.2.1983511299.1729514009",
+      "_ga_VDJZGL4GYV": "GS1.2.1729514009.1.1.1729514110.0.0.0",
+      "OptanonConsent": "isGpcEnabled=0&datestamp=Wed+Oct+23+2024+17%3A33%3A50+GMT%2B0200+(Central+European+Summer+Time)&version=202409.2.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=14464b3d-6e25-4b5a-a9da-88f51fcd77fc&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=s00%3A1%2Cf00%3A0%2Cm00%3A0%2Ct00%3A0%2Cf11%3A0%2Ci00%3A0%2CV2STACK3%3A0%2CV2STACK11%3A0%2CV2STACK20%3A0%2Cm03%3A1&intType=5&geolocation=NO%3B03&AwaitingReconsent=false",
+      "__Host-sp_csrf_sid": "4149716a9d2b304328f6bb9f8cdf5453c3167533c4b7642cbf6af22c87237f59"
+    },
+    "headers": {
+      "accept": "application/json",
+      "accept-language": "en-US,en;q=0.9,fr;q=0.8",
+      "authorization": "Bearer BQBwqytjFMQwAtRwBLBfSDoEXglb7o1NhgA-cZ8ZJ4g_LA3sGaaEHqsCFis3nIADdmC92oBNreW4X6uKQY6dKLmDDhZ_r5OMdUUqUQFkHtjrddbMYY1sFRqdFJIKceZ0N0x6tUh8X7tqwbVySx1HhKWwi1wLNRexacKNDHzgmqepPP95DfpXYQWAz3RFe9gP9u5MXF0QcRpWe7MnEcC3x4A8MsNFNGwj3h9ZQdoiFjxDhDg6BCFDIJzBUnfMzyC9frJ-PhPi5FnfseBHrsvdHTR6HcV1gTMo0-ToO4EYO53U-zeUiRJIOuKhLBZ81656EX3QRSRcAe5T",
+      "baggage": "sentry-environment=production,sentry-release=9bedf87827a21b79474602b553bee8a50145c97a,sentry-public_key=f4a7c7c55acb47ab8ff900050fce0bd4,sentry-trace_id=f4aaf03a54ef4674830de97cfe7a57ba,sentry-sample_rate=0.2,sentry-transaction=%2Fdashboard%2F%5Bcid%5D%2Fsettings,sentry-sampled=false",
+      "content-type": "application/json",
+      "priority": "u=1, i",
+      "referer": "https://developer.spotify.com/dashboard/da1a4950ec914d01a19d7f72612c828d/settings",
+      "sec-ch-ua": "'Google Chrome';v='129', 'Not=A?Brand';v='8', 'Chromium';v='129'",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "'Windows'",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "sentry-trace": "f4aaf03a54ef4674830de97cfe7a57ba-b7215dbbef10e443-0",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "x-csrf-token": "013acda71953f585faba8fc956eb4a8820e2ab3fbc31373239363937363633393235"
+    },
+    "url": "https://developer.spotify.com/api/s4d/v1/applications/REPLACE_WITH_RESULT_FROM_PREVIOUS_CALL/secret"
+  }
+}
