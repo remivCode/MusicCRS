@@ -131,11 +131,11 @@ class PlaylistAgent(Agent):
 
                     song = Song(title=title, artist=artist, album=None)
                     try:
-                        artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
+                        artist_record = self.db.read(table='artists', data=['id'], where={'name': artist})
                         artist_id = artist_record[0][0]
-                        song_record = self.db.read(table='songs', data=['song_id', 'album_id'], where={'title': title, 'artist_id': artist_id})
+                        song_record = self.db.read(table='songs', data=['id', 'album_id'], where={'name': title, 'artist_id': artist_id})
 
-                        album_record = self.db.read(table='albums', data=['title'], where={'album_id': song_record[0][1]})
+                        album_record = self.db.read(table='albums', data=['name'], where={'id': song_record[0][1]})
                         if album_record:
                             song.album = album_record[0][0]
                         else:
@@ -173,8 +173,8 @@ class PlaylistAgent(Agent):
                     song = Song(title=title, artist=artist or None, album=None)
 
                     try:
-                        artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
-                        song_record = self.db.read(table='songs', data=['song_id'], where={'title': title, 'artist_id': artist_record[0][0]})
+                        artist_record = self.db.read(table='artists', data=['id'], where={'name': artist})
+                        song_record = self.db.read(table='songs', data=['id'], where={'name': title, 'artist_id': artist_record[0][0]})
                         song_id = song_record[0][0]
 
                         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
@@ -198,7 +198,7 @@ class PlaylistAgent(Agent):
             elif utterance.text.startswith("show"):
                 self.used_commands.add("show")
                 print(f"playlist: {self.playlist}")
-                songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.title', 'artists.name'))
+                songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name'))
                 text = ""
                 print(f"songs: {songs}")
                 for song in songs:
@@ -234,7 +234,7 @@ class PlaylistAgent(Agent):
                 album_name = utterance.text.split("date album :")[-1].strip().strip('"').strip("'")
 
                 try:
-                    release_date_record = self.db.read(table='albums', data=['release_date'], where={'title': album_name})
+                    release_date_record = self.db.read(table='albums', data=['release_date'], where={'name': album_name})
                     if release_date_record:
                         response = AnnotatedUtterance(
                             f"The album '{album_name}' was released on {release_date_record[0][0]}.",
@@ -261,10 +261,10 @@ class PlaylistAgent(Agent):
                 artist = parts[1].strip('"').strip("'")
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist})
+                    artist_record = self.db.read(table='artists', data=['id'], where={'name': artist})
                     if artist_record:
                         artist_id = artist_record[0][0]
-                        genre_cursor = self.db.read(table='songs', data=['genre'], where={'title': title, 'artist_id': artist_id})
+                        genre_cursor = self.db.read(table='songs', data=['genre'], where={'name': title, 'artist_id': artist_id})
                         print(f"genre_cursor: {genre_cursor}")
                         if genre_cursor:
                             response = AnnotatedUtterance(
@@ -297,7 +297,7 @@ class PlaylistAgent(Agent):
                 artist_name = utterance.text.split("number songs :")[-1].strip().strip('"').strip("'")
 
                 try:
-                    artist = self.db.read(table='artists', data=['artist_id'], where={'name': artist_name})
+                    artist = self.db.read(table='artists', data=['id'], where={'name': artist_name})
                     if artist:
                         artist_id = artist[0][0]
                         total_songs_by_album_by_artist = self.db.read(
@@ -332,8 +332,8 @@ class PlaylistAgent(Agent):
                 artist_name = utterance.text.split("number albums :")[-1].strip().strip('"').strip("'")
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist_name})
-                    total_albums_record = self.db.read(table='artists', data=['total_albums'], where={'artist_id': artist_record[0][0]})
+                    artist_record = self.db.read(table='artists', data=['id'], where={'name': artist_name})
+                    total_albums_record = self.db.read(table='artists', data=['total_albums'], where={'id': artist_record[0][0]})
                     if total_albums_record:
                         response = AnnotatedUtterance(
                             f"The artist '{artist_name}' has released {total_albums_record[0][0]} albums.",
@@ -358,7 +358,7 @@ class PlaylistAgent(Agent):
                 song_title = utterance.text.split("which album : ")[-1].strip().strip('"').strip("'")
 
                 try:
-                    album_record = self.db.read_album_from_song(song_title=song_title, data=['albums.title'])
+                    album_record = self.db.read_album_from_song(song_title=song_title, data=['albums.name'])
                     if album_record:
                         response = AnnotatedUtterance(
                             f"The song '{song_title}' is featured in the album(s) '{', '.join(album[0] for album in album_record)}'.",
@@ -383,9 +383,9 @@ class PlaylistAgent(Agent):
                 artist_name = utterance.text.split("give song :")[-1].strip().strip('"').strip("'")
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': artist_name})
+                    artist_record = self.db.read(table='artists', data=['id'], where={'name': artist_name})
 
-                    song_record = self.db.read(table='songs', data=['title'], where={'artist_id': artist_record[0][0]})
+                    song_record = self.db.read(table='songs', data=['name'], where={'artist_id': artist_record[0][0]})
                     if song_record:
                         random_song = random.choice(song_record)
                         response = AnnotatedUtterance(

@@ -4,3 +4,6 @@ dialogue_export
 *.db
 songs_data.json
 archive.zip
+data
+.env
+.cache

@@ -11,10 +11,10 @@ import pandas as pd
 
 
 class Playlist():
-    def __init__(self, id, name="music.db", init=True):
+    def __init__(self, id, path=os.path.join("data", "spotify.sqlite"), init=True):
     # Connexion à la base de données SQLite
         self.id = id
-        self.conn = sqlite3.connect(name, check_same_thread=False)
+        self.conn = sqlite3.connect(path, check_same_thread=False)
         if init:
             self.init_db()
 
@@ -45,9 +45,9 @@ class Playlist():
     def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
         cursor = self.conn.cursor()
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM songs ' +
-            'INNER JOIN playlist_songs ON songs.song_id = playlist_songs.song_id ' +
-            'INNER JOIN artists ON songs.artist_id = artists.artist_id ' +
-            'INNER JOIN albums ON songs.album_id = albums.album_id ' +
+            'INNER JOIN playlist_songs ON songs.id = playlist_songs.song_id ' +
+            'INNER JOIN artists ON songs.artist_id = artists.id ' +
+            'INNER JOIN albums ON songs.album_id = albums.id ' +
             'WHERE playlist_songs.playlist_id = ?', (playlist_id,))
         return cursor.fetchall()
     
@@ -56,44 +56,26 @@ class Playlist():
         cursor.execute('''
         SELECT DISTINCT ''' + ', '.join(data) + '''
         FROM albums
-        INNER JOIN songs ON albums.album_id = songs.album_id
-        WHERE songs.title = ?
+        INNER JOIN songs ON albums.id = songs.album_id
+        WHERE songs.name = ?
     ''', (song_title,))
         return cursor.fetchall()
     
     def init_db(self):
+        print("Initializing database...")
+
+        download_path = os.path.join("data", "archive.zip")
+        if not os.path.exists(download_path):
+            print("Downloading data...")
+            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/maltegrosse/8-m-spotify-tracks-genre-audio-features", "--ssl-no-revoke"]
+            result = subprocess.run(curl_command, check=True)
+        zip_path = os.path.expanduser(download_path)
+
+        print("Extracting data...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall("data")
+        
         cursor = self.conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS artists (
-                artist_id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                total_albums INTEGER
-            );
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS albums (
-                album_id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                artist_id INTEGER,
-                release_date TEXT,
-                total_songs INTEGER,
-                FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
-            );
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS songs (
-                song_id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                album_id INTEGER,
-                artist_id INTEGER,
-                genre TEXT,
-                FOREIGN KEY (album_id) REFERENCES albums(album_id),
-                FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
-            );
-        ''')
-
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS playlists (
                 playlist_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,167 +86,110 @@ class Playlist():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS playlist_songs (
                 playlist_id TEXT,
-                song_id INTEGER,
+                song_id TEXT,
                 FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id),
-                FOREIGN KEY (song_id) REFERENCES songs(song_id),
+                FOREIGN KEY (song_id) REFERENCES songs(id),
                 PRIMARY KEY (playlist_id, song_id)
             );
         ''')
-
+        
         self.conn.commit()
-
-    def insert_data(self, playlist: int = 1):
-        print("Inserting data...")
-        cursor = self.conn.cursor()
-        # Ajouter des artistes
-        artists = [
-            ('Taylor Swift', 10),
-            ('The Weeknd', 5),
-            ('Adele', 3),
-            ('Imagine Dragons', 6),
-            ('Coldplay', 8),
-            ('Maroon 5', 6),
-            ('Foo Fighters', 10)
-        ]
-        cursor.executemany('INSERT INTO artists (name, total_albums) VALUES (?, ?);', artists)
-        
-        # Ajouter des albums
-        albums = [
-            ('1989', 1, 'Pop', '2014-10-27', 14),
-            ('After Hours', 2, 'R&B', '2020-03-20', 14),
-            ('25', 3, 'Pop', '2015-11-20', 11),
-            ('Evolve', 4, 'Rock', '2017-06-23', 11),
-            ('Ghost Stories', 5, 'Rock', '2014-05-19', 9),
-            ('Songs About Jane', 6, 'Pop', '2002-06-25', 12),
-            ('Wasting Light', 7, 'Rock', '2011-04-12', 11)
-        ]
-        cursor.executemany('INSERT INTO albums (title, artist_id, genre, release_date, total_songs) VALUES (?, ?, ?, ?, ?);', albums)
-        
-        # Ajouter des chansons
-        songs = [
-            ('Shake It Off', 1, 1),
-            ('Blinding Lights', 2, 2),
-            ('Hello', 3, 3),
-            ('Thunder', 4, 4),
-            ('Paradise', 5, 5),
-            ('Sugar', 6, 6),
-            ('Rope', 7, 7),
-            ('Demons', 4, 1),
-            ('Viva La Vida', 5, 2),
-            ('Maps', 6, 3)
-        ]
-        cursor.executemany('INSERT INTO songs (title, album_id, artist_id) VALUES (?, ?, ?);', songs)
-        
-        # Ajouter des chansons aux playlists
-        playlist_songs = [
-            (playlist, 1),  # Top Hits -> Shake It Off
-            (playlist, 2),  # Top Hits -> Blinding Lights
-            (playlist, 3),  # Top Hits -> Hello
-            (playlist, 4),  # Chill Vibes -> Thunder
-            (playlist, 5),  # Chill Vibes -> Paradise
-            (playlist, 6),  # Rock Anthems -> Sugar
-            (playlist, 7)   # Rock Anthems -> Rope
-        ]
-        cursor.executemany('INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?);', playlist_songs)
-
-        self.conn.commit()
-
-
-    def extract_kaggle_data(self):
-        download_path = "./archive.zip"
-        if not os.path.exists(download_path):
-            curl_command = ["curl", "-L", "-o", download_path,"https://www.kaggle.com/api/v1/datasets/download/joebeachcapital/30000-spotify-songs"]
-            result = subprocess.run(curl_command, check=True)
-
-        csv_path = os.path.join(os.path.expanduser("extracted_files"), 'spotify_songs.csv')
-        if not os.path.exists(csv_path):
-            zip_path = os.path.expanduser("./archive.zip")
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall("extracted_files")
-        data = pd.read_csv(csv_path)
-        return data['track_artist'].unique()
-
-
-    def fetch_recordings(self, limit=1000000, batch_size=100, sleep_time=1.0):  
-        musicbrainzngs.set_useragent("MyMusicApp", "1.0", "r.vialleton@stud.uis.n")
-
-        recordings = []
-        
-        artist_names=self.extract_kaggle_data()
-        for i,name in enumerate(artist_names):
-            if len(recordings) >= limit:
-                break
-            offset = 0
-            while(offset < 300 and len(recordings) < limit):
-                try:
-                    print(f"Fetching recordings for {name}...")
-                    result = musicbrainzngs.search_recordings(artist=name, limit=batch_size, offset=offset)
-                    recordings_batch = result['recording-list']
-
-                    if not recordings_batch:
-                        print("No more recordings found, continue.")
-                        break
-
-                    if recordings_batch[0]['artist-credit'][0]['artist']['name'] != name:
-                        print("No more recordings found, continue.")
-                        break
-
-                    recordings.extend(recordings_batch)
-                    print(f"Fetched {len(recordings)} recordings so far.")
-                    
-                    # Increment offset for pagination
-                    offset += batch_size
-                    
-                    # Sleep to respect rate limits
-                    time.sleep(sleep_time)
-                    
-                except musicbrainzngs.WebServiceError as e:
-                    print(f"Error fetching data: {e}")
-                    time.sleep(5)  # Wait and retry in case of an error
-
-        return recordings
 
     def populate_data(self):
         print("Populating data...")
         cursor = self.conn.cursor()
 
-        recordings = self.fetch_recordings(limit=1000,batch_size=100)
-        for recording in recordings:
-            try:
-                record_id = recording['id']
-                record_title = recording['title']
-                artist_id = recording['artist-credit'][0]['artist']['id']
-                artist_name = recording['artist-credit'][0]['artist']['name']
-                album_id = recording['release-list'][0]['id']
-                album_name = recording['release-list'][0]['title']
-                album_date = recording['release-list'][0]['date']
-                album_type = recording['release-list'][0]['release-group']['primary-type']
-                if album_type != 'Album' and album_type != 'EP' and album_type != 'Single':
-                    print(f"Skipping {record_title}, not an album or EP or Single")
-                    continue
-                if 'tag-list' in recording:
-                    print(f"found genres for {record_title}")
-                    record_genres = [tag['name'] for tag in recording['tag-list']]
-                else:
-                    record_genres = ['unknown']
+        print("Creating indexes...")
 
-                artist_record = self.read(table='artists', where={'artist_id': artist_id})
-                if not artist_record:
-                    cursor.execute('INSERT INTO artists (artist_id, name, total_albums) VALUES (?, ?, ?);', (artist_id, artist_name, 0))
-                
-                album_record = self.read(table='albums', where={'album_id': album_id})
-                if not album_record:
-                    cursor.execute('INSERT INTO albums (album_id, title, artist_id, release_date, total_songs) VALUES (?, ?, ?, ?, ?);', (album_id, album_name, artist_id, album_date, 0))
-                    cursor.execute('UPDATE artists SET total_albums = total_albums + 1 WHERE artist_id = ?;', (artist_id,))
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_audio_features_id ON audio_features (id);")
+        print("Index created: idx_audio_features_id")
 
-                song_record = self.read(table='songs', where={'song_id': record_id})
-                if not song_record:
-                    cursor.execute('INSERT INTO songs (song_id, title, album_id, artist_id, genre) VALUES (?, ?, ?, ?, ?);', (record_id, record_title, album_id, artist_id, ', '.join(record_genres)))
-                    cursor.execute('UPDATE albums SET total_songs = total_songs + 1 WHERE album_id = ?;', (album_id,))
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_tracks_audio_feature_id ON tracks (audio_feature_id);")
+        print("Index created: idx_tracks_audio_feature_id")
 
-            except Exception as e:
-                print(f"Error populating data: {e}\nrecording: {recording}")
-                continue
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_tracks_id ON tracks (id);")
+        print("Index created: idx_tracks_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_artists_id ON artists (id);")
+        print("Index created: idx_artists_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_albums_id ON albums (id);")
+        print("Index created: idx_albums_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_artist_genre_genre_id ON r_artist_genre (genre_id);")
+        print("Index created: idx_r_artist_genre_genre_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_artist_genre_artist_id ON r_artist_genre (artist_id);")
+        print("Index created: idx_r_artist_genre_artist_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_track_artist_artist_id ON r_track_artist (artist_id);")
+        print("Index created: idx_r_track_artist_artist_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_track_artist_track_id ON r_track_artist (track_id);")
+        print("Index created: idx_r_track_artist_track_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_albums_artists_artist_id ON r_albums_artists (artist_id);")
+        print("Index created: idx_r_albums_artist_artist_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_albums_artists_album_id ON r_albums_artists (album_id);")
+        print("Index created: idx_r_albums_artist_album_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_albums_tracks_album_id ON r_albums_tracks (album_id);")
+        print("Index created: idx_r_albums_tracks_album_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_albums_tracks_track_id ON r_albums_tracks (track_id);")
+        print("Index created: idx_r_albums_tracks_track_id")
+
+        cursor.execute("""
+            DELETE FROM tracks
+            WHERE id NOT IN (
+                SELECT id FROM tracks
+                ORDER BY RANDOM()
+                LIMIT 1500000
+            );
+        """)
+
+        cursor.execute("SELECT COUNT(*) FROM tracks;")
+        print(f"Total tracks: {cursor.fetchone()[0]}")
+
+        cursor.execute("CREATE TABLE IF NOT EXISTS songs AS SELECT * FROM tracks INNER JOIN audio_features ON tracks.audio_feature_id = audio_features.id INNER JOIN r_track_artist ON tracks.id = r_track_artist.track_id  INNER JOIN r_albums_tracks ON tracks.id = r_albums_tracks.track_id;")
+        
+        cursor.execute("ALTER TABLE albums ADD COLUMN artist_id TEXT;")
+        cursor.execute("""
+            UPDATE albums
+            SET artist_id = (
+                SELECT r_albums_artists.artist_id 
+                FROM r_albums_artists 
+                WHERE r_albums_artists.album_id = albums.id
+            );
+        """)
+        print("Updated albums with artist_id")
+
+        cursor.execute("ALTER TABLE artists ADD COLUMN genre TEXT;")
+        cursor.execute("""
+            UPDATE artists
+            SET genre = (
+                SELECT r_artist_genre.genre_id 
+                FROM r_artist_genre 
+                WHERE r_artist_genre.artist_id = artists.id
+            );
+        """)
+        print("Updated artists with genre")
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';") 
+        table_names = [table[0] for table in cursor.fetchall()] 
+        print("Tables:", table_names) 
+
+        os.makedirs("data/new_schema", exist_ok=True) 
+        for table_name in table_names: 
+            cursor.execute(f"PRAGMA table_info('{table_name}');") 
+            column_names = [column[1] for column in cursor.fetchall()] 
+            with open(f"data/new_schema/{table_name}.csv", "w") as f: 
+                f.write(",".join(column_names) + "\n") 
+                cursor.execute(f"SELECT * FROM {table_name} LIMIT 1;") 
+                row = cursor.fetchone()
+                if row:
+                    f.write(",".join([str(column) for column in row]) + "\n") 
         
         res = cursor.execute('SELECT COUNT(*) FROM songs;')
         print(f"Total songs added: {res.fetchone()[0]}")

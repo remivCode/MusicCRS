@@ -54,7 +54,7 @@ class CustomPlatform(FlaskSocketPlatform):
     def __init__(self, agent_class: Type[Agent]) -> None:
         super().__init__(agent_class=agent_class)
         self._active_users: Dict[str, CustomUser] = {}
-        if os.path.exists('music.db'):
+        if os.path.exists('data/spotify.sqlite'):
             self.db = Playlist(id=uuid.uuid4().hex, init=False)
         else:
             self.db = Playlist(id=uuid.uuid4().hex)
@@ -81,8 +81,7 @@ class CustomPlatform(FlaskSocketPlatform):
         user.connect_playlist(self.playlist, self.db)
     
         print(f"platform playlist id {self.playlist}")
-
-        songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.title', 'artists.name', 'albums.title'))
+        songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name', 'albums.name'))
         song_data = [{"title": song[0], "artist": song[1], "album": song[2]} for song in songs]
         self.socketio.emit("playlist", song_data, room=user_id)
 
@@ -122,8 +121,8 @@ class CustomPlatform(FlaskSocketPlatform):
     def remove(self, user_id: str, remove: dict) -> None:
         song = Song(remove["title"], remove["artist"], remove["album"])
         try:
-            artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
-            song_record = self.db.read(table='songs', data=['song_id'], where={'title': song.title, 'artist_id': artist_record[0][0]})
+            artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
+            song_record = self.db.read(table='songs', data=['id'], where={'name': song.title, 'artist_id': artist_record[0][0]})
             song_id = song_record[0][0]
             playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where={'playlist_id': self.playlist, 'song_id': song_id})
             print(f"deleted playlist_song _record: {playlist_song_record}")
@@ -135,26 +134,26 @@ class CustomPlatform(FlaskSocketPlatform):
 
     def add(self, user_id: str, add: dict) -> None:
         song = Song(add["title"], add["artist"], add["album"])
-        artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
+        artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
         if not artist_record:
             # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
             self.db.create(table='artists', data={'name': song.artist})
-            artist_record = self.db.read(table='artists', data=['artist_id'], where={'name': song.artist})
+            artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
 
         artist_id = artist_record[0][0]
 
-        album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
+        album_record = self.db.read(table='albums', data=['id'], where={'name': song.album})
         if not album_record:
             if not song.album:
                 song.album = "Unknown"
-            self.db.create(table='albums', data={'title': song.album})
-            album_record = self.db.read(table='albums', data=['album_id'], where={'title': song.album})
+            self.db.create(table='albums', data={'name': song.album})
+            album_record = self.db.read(table='albums', data=['id'], where={'name': song.album})
 
         album_id = album_record[0][0]
 
-        self.db.create(table='songs', data={'title': song.title, 'artist_id': artist_id, 'album_id': album_id})
+        self.db.create(table='songs', data={'name': song.title, 'artist_id': artist_id, 'album_id': album_id})
 
-        song_record = self.db.read(table='songs', data=['song_id'], where={'title': song.title, 'artist_id': artist_id})
+        song_record = self.db.read(table='songs', data=['id'], where={'name': song.title, 'artist_id': artist_id})
         if song_record:
             song_id = song_record[0][0]
             self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
