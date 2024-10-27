@@ -12,6 +12,7 @@ import sqlite3
 
 from custom_user import CustomUser
 from playlist import Playlist
+from entity_linker import EntityLinker
 
 from song import Song
 
@@ -61,11 +62,13 @@ class CustomPlatform(FlaskSocketPlatform):
             self.db = Playlist(id=uuid.uuid4().hex)
             self.db.populate_data()
 
-        playlist = self.db.read(table='playlists', data=['playlist_id'], where={'name': 'My Playlist'})
+        playlist = self.db.read(table='playlists', data=['playlist_id'], where=f'name = "My Playlist"')
         if not playlist:
             self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
         else:
             self.playlist = playlist[0][0]
+
+        self.entity_linker = EntityLinker(db=self.db)
 
     def connect(self, user_id: str) -> None:
         """Connects a user to an agent.
@@ -77,7 +80,7 @@ class CustomPlatform(FlaskSocketPlatform):
         self._active_users[user_id] = CustomUser(user_id)
 
         agent = self.get_new_agent()
-        agent.connect_playlist(self.playlist, self.db)
+        agent.connect_playlist(self.playlist, self.db, self.entity_linker)
         commands = agent.get_commands()
         self.socketio.emit("commands", commands, room=user_id)
         
@@ -125,10 +128,10 @@ class CustomPlatform(FlaskSocketPlatform):
     def remove(self, user_id: str, remove: dict) -> None:
         song = Song(remove["title"], remove["artist"], remove["album"])
         try:
-            artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
-            song_record = self.db.read(table='songs', data=['id'], where={'name': song.title, 'artist_id': artist_record[0][0]})
+            artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist}"')
+            song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_record[0][0]}"')
             song_id = song_record[0][0]
-            playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where={'playlist_id': self.playlist, 'song_id': song_id})
+            playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where=f'playlist_id = "{self.playlist}" AND song_id = "{song_id}"')
             print(f"deleted playlist_song _record: {playlist_song_record}")
             self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
 
@@ -138,21 +141,21 @@ class CustomPlatform(FlaskSocketPlatform):
 
     def add(self, user_id: str, add: dict) -> None:
         song = Song(add["title"], add["artist"], add["album"])
-        artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
+        artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist}"')
         if not artist_record:
             self.socketio.emit("add:response", {"status": "KO", "message": "Artist not found"}, room=user_id)
             return
 
         artist_id = artist_record[0][0]
 
-        album_record = self.db.read(table='albums', data=['id'], where={'name': song.album})
+        album_record = self.db.read(table='albums', data=['id'], where=f'name "{song.album}"')
         if not album_record:
             self.socketio.emit("add:response", {"status": "KO", "message": "Album not found"}, room=user_id)
             return
 
         album_id = album_record[0][0]
 
-        song_record = self.db.read(table='songs', data=['id'], where={'name': song.title, 'artist_id': artist_id})
+        song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_id}"')
         if song_record:
             song_id = song_record[0][0]
             try: 

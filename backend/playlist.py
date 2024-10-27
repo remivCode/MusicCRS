@@ -34,12 +34,14 @@ class Playlist():
         cursor.execute('UPDATE ' + table + ' SET ' + ', '.join([key + ' = ?' for key in data.keys()]) + ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()]), tuple(data.values()) + tuple(where.values()))
         self.conn.commit()
 
-    def read(self, table: str, data: list[str] = ("*"), where: dict[str, str] = {}):
+    def read(self, table: str, data: list[str] = ("*"), where: str = "", limit=None):
         cursor = self.conn.cursor()
         request = 'SELECT ' + ', '.join(data) + ' FROM ' + table
         if where:
-            request += ' WHERE ' + ' AND '.join([key + ' = ?' for key in where.keys()])
-        cursor.execute(request, tuple(where.values()))
+            request += ' WHERE ' + where
+        if limit:
+            request += ' LIMIT ' + str(limit)
+        cursor.execute(request)
         return cursor.fetchall()
 
     def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
