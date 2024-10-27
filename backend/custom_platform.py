@@ -8,6 +8,7 @@ from dialoguekit.connector import DialogueConnector
 from typing import Type, Dict, Any, List, cast
 from dataclasses import asdict, dataclass
 from dialoguekit.core import Utterance, AnnotatedUtterance
+import sqlite3
 
 from custom_user import CustomUser
 from playlist import Playlist
@@ -60,8 +61,11 @@ class CustomPlatform(FlaskSocketPlatform):
             self.db = Playlist(id=uuid.uuid4().hex)
             self.db.populate_data()
 
-        self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
-        # self.db.insert_data(playlist=self.playlist)
+        playlist = self.db.read(table='playlists', data=['playlist_id'], where={'name': 'My Playlist'})
+        if not playlist:
+            self.playlist = self.db.create(table='playlists', data={'name': 'My Playlist'})
+        else:
+            self.playlist = playlist[0][0]
 
     def connect(self, user_id: str) -> None:
         """Connects a user to an agent.
@@ -136,27 +140,32 @@ class CustomPlatform(FlaskSocketPlatform):
         song = Song(add["title"], add["artist"], add["album"])
         artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
         if not artist_record:
-            # Si l'artiste n'existe pas, l'ajouter (exemple sans genre et albums pour simplifier)
-            self.db.create(table='artists', data={'name': song.artist})
-            artist_record = self.db.read(table='artists', data=['id'], where={'name': song.artist})
+            self.socketio.emit("add:response", {"status": "KO", "message": "Artist not found"}, room=user_id)
+            return
 
         artist_id = artist_record[0][0]
 
         album_record = self.db.read(table='albums', data=['id'], where={'name': song.album})
         if not album_record:
-            if not song.album:
-                song.album = "Unknown"
-            self.db.create(table='albums', data={'name': song.album})
-            album_record = self.db.read(table='albums', data=['id'], where={'name': song.album})
+            self.socketio.emit("add:response", {"status": "KO", "message": "Album not found"}, room=user_id)
+            return
 
         album_id = album_record[0][0]
-
-        self.db.create(table='songs', data={'name': song.title, 'artist_id': artist_id, 'album_id': album_id})
 
         song_record = self.db.read(table='songs', data=['id'], where={'name': song.title, 'artist_id': artist_id})
         if song_record:
             song_id = song_record[0][0]
-            self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+            try: 
+                self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+            except sqlite3.IntegrityError as e:
+                print(e)
+                self.socketio.emit("add:response", {"status": "KO", "message": "Song already in playlist"}, room=user_id)
+                return
+            self.socketio.emit("add:response", {"status": "OK", "message": "Song added successfully"}, room=user_id)
+            return
+        else:
+            self.socketio.emit("add:response", {"status": "KO", "message": "Song not found"}, room=user_id)
+            return
 
     def clear(self, user_id: str) -> None:
         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})

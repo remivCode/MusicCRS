@@ -153,7 +153,17 @@ class Playlist():
         print(f"Total tracks: {cursor.fetchone()[0]}")
 
         cursor.execute("CREATE TABLE IF NOT EXISTS songs AS SELECT * FROM tracks INNER JOIN audio_features ON tracks.audio_feature_id = audio_features.id INNER JOIN r_track_artist ON tracks.id = r_track_artist.track_id  INNER JOIN r_albums_tracks ON tracks.id = r_albums_tracks.track_id;")
-        
+        print("Created songs table")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_id ON songs (id);")
+        print("Index created: idx_songs_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_album_id ON songs (album_id);")
+        print("Index created: idx_songs_album_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_artist_id ON songs (artist_id);")
+        print("Index created: idx_songs_artist_id")
+
         cursor.execute("ALTER TABLE albums ADD COLUMN artist_id TEXT;")
         cursor.execute("""
             UPDATE albums
@@ -165,6 +175,9 @@ class Playlist():
         """)
         print("Updated albums with artist_id")
 
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_albums_artist_id ON albums (artist_id);")
+        print("Index created: idx_albums_artist_id")
+
         cursor.execute("ALTER TABLE artists ADD COLUMN genre TEXT;")
         cursor.execute("""
             UPDATE artists
@@ -175,6 +188,38 @@ class Playlist():
             );
         """)
         print("Updated artists with genre")
+
+        cursor.execute('''
+            ALTER TABLE albums
+            ADD COLUMN total_songs INTEGER
+        ''')
+
+        # Update the song_count column for each album
+        cursor.execute('''
+            UPDATE albums
+            SET total_songs = (
+                SELECT COUNT(*)
+                FROM songs
+                WHERE songs.album_id = albums.id
+            )
+        ''')
+        print("Updated albums with total_songs")
+
+        cursor.execute('''
+            ALTER TABLE artists
+            ADD COLUMN total_albums INTEGER
+        ''')
+
+        # Update the song_count column for each album
+        cursor.execute('''
+            UPDATE artists
+            SET total_albums = (
+                SELECT COUNT(*)
+                FROM albums
+                WHERE albums.artist_id = artists.id
+            )
+        ''')
+        print("Updated artists with total_albums")
 
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';") 
         table_names = [table[0] for table in cursor.fetchall()] 

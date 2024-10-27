@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MDBIcon, MDBBtn, MDBTable, MDBTableHead, MDBTableBody, MDBInput } from 'mdb-react-ui-kit';
 
 import { useSocket } from "../../contexts/SocketContext";
-import { AgentMessage, ChatMessage, Annotation, Song } from "../../types";
+import { AgentMessage, ChatMessage, Annotation, Song, Response } from "../../types";
 
 export default function Playlist() {
   const [playlist, setPlaylist] = useState<Song[]>([]);
@@ -93,10 +93,14 @@ export default function Playlist() {
       };
 
       socket?.emit("add", {add: song}); 
-
-      setPlaylist([...playlist, song]);
-      setNewSong({ title: '', artist: '', album: '' }); // Clear input fields after adding
-      setIsAddingRow(false);
+      socket?.on("add:response", (response: Response) => {
+        console.log(response)
+        if (response.status === "OK") {
+          setPlaylist([...playlist, song]);
+          setNewSong({ title: '', artist: '', album: '' }); // Clear input fields after adding
+        }
+        setIsAddingRow(false);
+      })
     }
   };
 

@@ -30,6 +30,11 @@ export type Song = {
   album?: string;
 };
 
+export type Response = {
+  status: string;
+  message: string;
+}
+
 export type Command = {
   key: string;
   desc: string;
