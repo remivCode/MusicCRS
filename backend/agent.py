@@ -1,3 +1,4 @@
+from typing import List
 from dialoguekit.core.annotated_utterance import AnnotatedUtterance, Annotation
 from dialoguekit.core.dialogue_act import DialogueAct
 from dialoguekit.core.utterance import Utterance
@@ -128,16 +129,21 @@ class PlaylistAgent(Agent):
         try:
             if utterance.text.startswith("add"):
                 self.used_commands.add("add")
-                artist = self.entity_linker.recognize_artist(utterance.text[4:])
-                try:
-                    self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
-                    response = self.generate_add_response(song)
-                except sqlite3.IntegrityError as e:
-                    print(e)
+                songs = self.entity_linker.recognize_song(utterance.text[4:])
+                if songs:
+                    try:
+                        response = self.generate_add_response(songs)
+                    except sqlite3.IntegrityError as e:
+                        print(e)
+                        response = AnnotatedUtterance(
+                            f"The song \"{songs[0].title}\" by \"{songs[0].artist}\" is already in the playlist.",
+                            participant=DialogueParticipant.AGENT,
+                        )
+                else:
                     response = AnnotatedUtterance(
-                        f"The song \"{title}\" by \"{artist}\" is already in the playlist.",
-                        participant=DialogueParticipant.AGENT,
-                    )
+                            f"Sorry but I couldn't understand which song you want to add.",
+                            participant=DialogueParticipant.AGENT,
+                        )
 
                 self._dialogue_connector.register_agent_utterance(response)
                 self.check_for_suggestions()
@@ -150,7 +156,7 @@ class PlaylistAgent(Agent):
                     title = parts[0].strip('"')
                     artist = parts[1].strip('"')
 
-                    song = Song(title=title, artist=artist or None, album=None)
+                    song = Song(title=title, artist_name=artist or None, album_name=None)
 
                     try:
                         artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{artist}"')
@@ -408,9 +414,9 @@ class PlaylistAgent(Agent):
         )
         self._dialogue_connector.register_agent_utterance(response)
 
-    def generate_add_response(self, song: Song) -> AnnotatedUtterance:
+    def generate_add_response(self, songs: List[Song]) -> AnnotatedUtterance:
         """
-        Generates a response when a song is added to the playlist.
+        Generates a response to display the songs to add
 
         Args:
             song: The Song instance that was added to the playlist.
@@ -419,23 +425,23 @@ class PlaylistAgent(Agent):
             AnnotatedUtterance: The response to be sent to the user.
         """
         response = AnnotatedUtterance(
-            song.title + " by " + song.artist + " has been added to your playlist.",
+            "Please select the songs you want to add to the playlist : ",
             participant=DialogueParticipant.AGENT,
             intent=Intent(label="add")
         )
 
         annotations = [
             Annotation(
-                slot="artist",
-                value=song.artist
+                slot="artists",
+                value=[song.artist_name for song, score in songs]
             ),
             Annotation(
-                slot="title",
-                value=song.title
+                slot="titles",
+                value=[song.title for song, score in songs]
             ),
             Annotation(
-                slot="album",
-                value=song.album
+                slot="albums",
+                value=[song.album_name for song, score in songs]
             )
         ]
         response.add_annotations(annotations)

@@ -15,6 +15,7 @@ class Playlist():
     # Connexion à la base de données SQLite
         self.id = id
         self.conn = sqlite3.connect(path, check_same_thread=False)
+        self.conn.text_factory = lambda x: x.decode('utf-8', errors='ignore')
         if init:
             self.init_db()
 
@@ -78,6 +79,8 @@ class Playlist():
             zip_ref.extractall("data")
         
         cursor = self.conn.cursor()
+        cursor.execute('PRAGMA encoding = "UTF-8"')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS playlists (
                 playlist_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,6 +103,7 @@ class Playlist():
     def populate_data(self):
         print("Populating data...")
         cursor = self.conn.cursor()
+        cursor.execute('PRAGMA encoding = "UTF-8"')
 
         print("Creating indexes...")
 
@@ -115,8 +119,14 @@ class Playlist():
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_artists_id ON artists (id);")
         print("Index created: idx_artists_id")
 
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_artists_name ON artists (name);")
+        print("Index created: idx_artists_name")
+
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_albums_id ON albums (id);")
         print("Index created: idx_albums_id")
+
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_albums_name ON albums (name);")
+        print("Index created: idx_albums_name")
 
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_artist_genre_genre_id ON r_artist_genre (genre_id);")
         print("Index created: idx_r_artist_genre_genre_id")
@@ -142,14 +152,18 @@ class Playlist():
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_r_albums_tracks_track_id ON r_albums_tracks (track_id);")
         print("Index created: idx_r_albums_tracks_track_id")
 
-        cursor.execute("""
+        self.conn.commit()
+
+        cursor.execute('''
             DELETE FROM tracks
             WHERE id NOT IN (
                 SELECT id FROM tracks
                 ORDER BY RANDOM()
                 LIMIT 1500000
             );
-        """)
+        ''')
+
+        self.conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM tracks;")
         print(f"Total tracks: {cursor.fetchone()[0]}")
@@ -160,6 +174,9 @@ class Playlist():
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_id ON songs (id);")
         print("Index created: idx_songs_id")
 
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_name ON songs (name);")
+        print("Index created: idx_songs_name")
+
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_songs_album_id ON songs (album_id);")
         print("Index created: idx_songs_album_id")
 
@@ -167,28 +184,30 @@ class Playlist():
         print("Index created: idx_songs_artist_id")
 
         cursor.execute("ALTER TABLE albums ADD COLUMN artist_id TEXT;")
-        cursor.execute("""
+        cursor.execute('''
             UPDATE albums
             SET artist_id = (
                 SELECT r_albums_artists.artist_id 
                 FROM r_albums_artists 
                 WHERE r_albums_artists.album_id = albums.id
             );
-        """)
+        ''')
         print("Updated albums with artist_id")
 
         cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_albums_artist_id ON albums (artist_id);")
         print("Index created: idx_albums_artist_id")
 
+        self.conn.commit()
+
         cursor.execute("ALTER TABLE artists ADD COLUMN genre TEXT;")
-        cursor.execute("""
+        cursor.execute('''
             UPDATE artists
             SET genre = (
                 SELECT r_artist_genre.genre_id 
                 FROM r_artist_genre 
                 WHERE r_artist_genre.artist_id = artists.id
             );
-        """)
+        ''')
         print("Updated artists with genre")
 
         cursor.execute('''
@@ -223,6 +242,8 @@ class Playlist():
         ''')
         print("Updated artists with total_albums")
 
+        self.conn.commit()
+
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';") 
         table_names = [table[0] for table in cursor.fetchall()] 
         print("Tables:", table_names) 
@@ -242,3 +263,27 @@ class Playlist():
         print(f"Total songs added: {res.fetchone()[0]}")
         self.conn.commit()
 
+        """ self.conn.text_factory = bytes
+        cursor = self.conn.cursor()
+
+        from encodings.aliases import aliases
+        _encodings = set(aliases.values())
+
+        def try_encodings(byte_text: bytes):
+            for encoding in _encodings:
+                try:
+                    print(f'Encoding {encoding}: {byte_text.decode(encoding)}')
+                    print(f"Encoding {encoding} suceeded")
+                except (UnicodeDecodeError, LookupError):
+                    pass
+        
+        print("Trying to decode byte strings...")
+        cursor.execute("SELECT * FROM artists")
+        col_ix = 0
+        while row := cursor.fetchone():
+            try:
+                text = row[col_ix].decode()
+            except UnicodeDecodeError as e:
+                print('Cannot decode byte string: ', row[col_ix])
+                try_encodings(row[col_ix])
+                break """

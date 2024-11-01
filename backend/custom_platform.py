@@ -68,7 +68,10 @@ class CustomPlatform(FlaskSocketPlatform):
         else:
             self.playlist = playlist[0][0]
 
-        self.entity_linker = EntityLinker(db=self.db)
+        if os.path.exists(os.path.join('data', 'models', 'ner_model')):
+            self.entity_linker = EntityLinker(db=self.db, train=True)
+        else:
+            self.entity_linker = EntityLinker(db=self.db, train=True)
 
     def connect(self, user_id: str) -> None:
         """Connects a user to an agent.
@@ -128,7 +131,7 @@ class CustomPlatform(FlaskSocketPlatform):
     def remove(self, user_id: str, remove: dict) -> None:
         song = Song(remove["title"], remove["artist"], remove["album"])
         try:
-            artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist}"')
+            artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist_name}"')
             song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_record[0][0]}"')
             song_id = song_record[0][0]
             playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where=f'playlist_id = "{self.playlist}" AND song_id = "{song_id}"')
@@ -141,14 +144,14 @@ class CustomPlatform(FlaskSocketPlatform):
 
     def add(self, user_id: str, add: dict) -> None:
         song = Song(add["title"], add["artist"], add["album"])
-        artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist}"')
+        artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist_name}"')
         if not artist_record:
             self.socketio.emit("add:response", {"status": "KO", "message": "Artist not found"}, room=user_id)
             return
 
         artist_id = artist_record[0][0]
 
-        album_record = self.db.read(table='albums', data=['id'], where=f'name "{song.album}"')
+        album_record = self.db.read(table='albums', data=['id'], where=f'name "{song.album_name}"')
         if not album_record:
             self.socketio.emit("add:response", {"status": "KO", "message": "Album not found"}, room=user_id)
             return

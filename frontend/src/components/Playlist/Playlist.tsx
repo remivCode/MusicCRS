@@ -72,6 +72,7 @@ export default function Playlist() {
   const handelMessageForPlaylist = (message: ChatMessage) => {
     const intent = message.intent
     const annotations: Annotation[] = message.annotations
+    console.log(annotations)
 
     if (intent === "add") {
       handleAgentAddSong(annotations)
