@@ -15,7 +15,7 @@ from song import Song
 import datetime
 import sqlite3
 from entity_linker import EntityLinker
-
+import joblib
 
 class PlaylistAgent(Agent):
     def __init__(self, id: str):
@@ -62,6 +62,10 @@ class PlaylistAgent(Agent):
             "give song": {
                 "desc": "Ask for a random song by an artist.",
                 "syntax": "give song : <artist>",
+                },
+            "recommend": {
+                "desc": "Recommend a random song.",
+                "syntax": "recommend",
                 },
         }
         self.used_commands = set()
@@ -127,7 +131,13 @@ class PlaylistAgent(Agent):
             return
 
         try:
-            if utterance.text.startswith("add"):
+            clf_loaded = joblib.load('models/svm_model.joblib')
+            vectorizer_loaded = joblib.load('models/vectorizer.joblib')
+            new_query_vec = vectorizer_loaded.transform([utterance.text])
+            new_prediction = clf_loaded.predict(new_query_vec)
+            print(f"New prediction: {new_prediction[0]}")
+
+            if new_prediction[0] == "add":
                 self.used_commands.add("add")
                 artists = self.entity_linker.recognize_artist(utterance.text)
                 if artists:
@@ -154,7 +164,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
 
-            elif utterance.text.startswith("remove"):
+            elif new_prediction[0] == "remove":
                 self.used_commands.add("remove")
                 playlist_songs = [Song(id_=song[0], title=song[1], artist_name=song[2], album_name=song[3], artist_id=song[4], album_id=song[5]) for song in self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.id', 'songs.name', 'artists.name', 'albums.name', 'artists.id', 'albums.id'))]
                 songs = self.entity_linker.recognize_song_in_playlist(utterance.text, playlist_songs)
@@ -173,7 +183,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
 
-            elif utterance.text.startswith("show"):
+            elif new_prediction[0] == "show":
                 self.used_commands.add("show")
                 print(f"playlist: {self.playlist}")
                 songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=['songs.name', 'artists.name'])
@@ -193,7 +203,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
 
-            elif utterance.text.startswith("clear"):
+            elif new_prediction[0] == "clear":
 
                 self.used_commands.add("clear")
                 self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})
@@ -207,7 +217,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
             
-            elif "date album : " in utterance.text:
+            elif new_prediction[0] == "date album":
                 self.used_commands.add("date album")
 
                 try:
@@ -241,7 +251,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
             
-            elif "genre artist : " in utterance.text:
+            elif new_prediction[0] == "genre artist":
                 self.used_commands.add("genre artist")
                 artists = self.entity_linker.recognize_artist(utterance.text)
                 artist = artists[0][0]
@@ -282,7 +292,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
             
-            elif "number songs :" in utterance.text:
+            elif new_prediction[0] == "number songs":
                 self.used_commands.add("number songs")
                 artists = self.entity_linker.recognize_artist(utterance.text)
                 artist = artists[0][0]
@@ -310,7 +320,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
 
-            elif "number albums :" in utterance.text:
+            elif new_prediction[0] == "number albums":
                 self.used_commands.add("number albums")
 
                 artists = self.entity_linker.recognize_artist(utterance.text)
@@ -338,7 +348,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
 
-            elif "which album : " in utterance.text.lower():
+            elif new_prediction[0] == "which album":
                 self.used_commands.add("which album")
                 artists = self.entity_linker.recognize_artist(utterance.text)
                 if artists:
@@ -369,7 +379,7 @@ class PlaylistAgent(Agent):
                 self.check_for_suggestions()
                 return
             
-            elif "give song : " in utterance.text:
+            elif new_prediction[0] == "give song":
                 self.used_commands.add("give song")
                 artists = self.entity_linker.recognize_artist(utterance.text)
                 artist = artists[0][0]
@@ -395,6 +405,15 @@ class PlaylistAgent(Agent):
                 self._dialogue_connector.register_agent_utterance(response)
                 self.check_for_suggestions()
                 return
+            
+            elif "recommend" or "suggest" in utterance.text:
+                self.used_commands.add("recommend")
+                response = AnnotatedUtterance(
+                    "Sorry, I can't recommend anything yet. Please try again later.",
+                )
+                self._dialogue_connector.register_agent_utterance(response)
+                self.check_for_suggestions()
+                return 
 
         except InterruptedError as e:
             print(f"Error while processing user utterance: {e}")

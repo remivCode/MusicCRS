@@ -33,28 +33,6 @@ class EntityLinker:
         print("Initializing EntityLinker...")
         self.db = db
 
-        if train:
-            #spacy.cli.download(spacy_model)
-            self.nlp = spacy.blank("en")
-
-            ner_dataset_path = os.path.join("data", "elmd2.zip")
-            if not os.path.exists(ner_dataset_path):
-                print("Downloading data...")
-                curl_command = ["curl", "-L", "-o", ner_dataset_path,"http://mtg.upf.edu/system/files/projectsweb/elmd2.zip", "--ssl-no-revoke"]
-                result = subprocess.run(curl_command, check=True)
-
-            if not os.path.exists(os.path.join("data", "elmd2")):
-                zip_path = os.path.expanduser(ner_dataset_path)
-                print("Extracting data...")
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall("data")
-
-            TRAINING_DATA = self.get_training_data()
-            self.train_model(TRAINING_DATA)
-
-        print("Loading model...")
-        self.nlp = spacy.load(os.path.join("data", "models", "ner_model", "model-best"))
-
         print("Loading knowledge base...")
         self.knowledge_base = {
             "songs": self.db.read(table="songs", data=["id", "name", "artist_id", "album_id", "popularity"]),

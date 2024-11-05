@@ -5,3 +5,4 @@ musicbrainzngs==0.7.1
 rapidfuzz==3.10.1
 annoy==1.17.3
 sentence_transformers==3.2.1
+joblib

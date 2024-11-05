@@ -58,6 +58,7 @@ class CustomPlatform(FlaskSocketPlatform):
         self._active_users: Dict[str, CustomUser] = {}
         if os.path.exists('data/spotify.sqlite'):
             self.db = Playlist(id=uuid.uuid4().hex, init=False)
+            #self.db.add_clean_columns()
         else:
             self.db = Playlist(id=uuid.uuid4().hex)
             self.db.populate_data()
