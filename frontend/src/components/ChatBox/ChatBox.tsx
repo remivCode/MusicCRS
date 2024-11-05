@@ -19,7 +19,7 @@ import {
   MDBBtn
 } from "mdb-react-ui-kit";
 import { AgentChatMessage, UserChatMessage } from "../ChatMessage";
-import { ChatMessage, Command } from "../../types";
+import { ChatMessage, Command, Song, Annotation } from "../../types";
 import { ConfigContext } from "../../contexts/ConfigContext";
 
 export default function ChatBox() {
@@ -43,6 +43,7 @@ export default function ChatBox() {
   const [commands, setCommands] = useState([
     {key: "EXIT", desc: "End the conversation", syntax: "EXIT"},
   ]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     startConversation();
@@ -63,6 +64,7 @@ export default function ChatBox() {
       />
     );
     sendMessage({ message: inputValue });
+    setIsLoading(true);
     setInputValue("");
     if (inputRef.current) {
       inputRef.current.value = "";
@@ -88,12 +90,32 @@ export default function ChatBox() {
         const image_url = message.attachments?.find(
           (attachment) => attachment.type === "images"
         )?.payload.images?.[0];
+        const updatedMessages = chatMessagesRef.current.map((chatMessage, index) => {
+          if (index === chatMessagesRef.current.length - 1) return chatMessage;
+          return React.cloneElement(chatMessage, { last_message: false });
+        });
+        chatMessagesRef.current = updatedMessages;
+
+        const choices: Song[] = []
+        
+        const intent = message.intent
+        if (intent === "add") {
+          const annotations: Annotation[] = message.annotations
+          annotations.map((annotation) => {
+            const song: Song = annotation.value
+            choices.push(song)
+            }
+          )
+        }
+
         updateMessages(
           <AgentChatMessage
             key={chatMessagesRef.current.length}
             feedback={config.useFeedback ? giveFeedback : null}
             message={message.text}
             image_url={image_url}
+            last_message={true}
+            choices={choices}
           />
         );
       }
@@ -129,6 +151,7 @@ export default function ChatBox() {
   useEffect(() => {
     onMessage((message: ChatMessage) => {
       handelMessage(message);
+      setIsLoading(false);
       handleButtons(message);
     });
   }, [onMessage, handleButtons, handelMessage]);
@@ -171,6 +194,19 @@ export default function ChatBox() {
         <MDBCardBody>
           <div className="card-body-messages">
             {chatMessages}
+            {isLoading && 
+              <div className="loading-message-box">
+                <div className="spinner-grow text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <div className="spinner-grow text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <div className="spinner-grow text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            }
             <div className="d-flex flex-wrap justify-content-between">
               {chatButtons}
             </div>

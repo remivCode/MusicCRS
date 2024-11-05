@@ -1,3 +1,7 @@
+spacy==3.4.4
+pandas==2.2.3
 dialoguekit==0.0.9
 musicbrainzngs==0.7.1
-pandas==2.2.3
+rapidfuzz==3.10.1
+annoy==1.17.3
+sentence_transformers==3.2.1

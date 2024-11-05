@@ -1,3 +1,4 @@
+from typing import List
 from dialoguekit.core.annotated_utterance import AnnotatedUtterance, Annotation
 from dialoguekit.core.dialogue_act import DialogueAct
 from dialoguekit.core.utterance import Utterance
@@ -13,6 +14,7 @@ import random
 from song import Song
 import datetime
 import sqlite3
+from entity_linker import EntityLinker
 
 
 class PlaylistAgent(Agent):
@@ -104,9 +106,10 @@ class PlaylistAgent(Agent):
         )
         self._dialogue_connector.register_agent_utterance(utterance)
 
-    def connect_playlist(self, playlist: int, db: Playlist) -> None:
+    def connect_playlist(self, playlist: int, db: Playlist, entity_linker: EntityLinker) -> None:
         self.playlist = playlist
         self.db = db
+        self.entity_linker = entity_linker
 
         print(f"agent playlist id {self.playlist}")
 
@@ -126,78 +129,44 @@ class PlaylistAgent(Agent):
         try:
             if utterance.text.startswith("add"):
                 self.used_commands.add("add")
-                parts = utterance.text[4:].split(' - ')
-                if len(parts) == 2:
-                    title = parts[0].strip('"')
-                    artist = parts[1].strip('"')
-
-                    song = Song(title=title, artist=artist, album=None)
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                if artists:
+                    context = {"artists": [artist[0] for artist in artists]}
+                else:
+                    context = {}
+                songs = self.entity_linker.recognize_song(utterance.text[4:], context=context)
+                if songs:
                     try:
-                        artist_record = self.db.read(table='artists', data=['id'], where={'name': artist})
-                        artist_id = artist_record[0][0]
-                        song_record = self.db.read(table='songs', data=['id', 'album_id'], where={'name': title, 'artist_id': artist_id})
-
-                        album_record = self.db.read(table='albums', data=['name'], where={'id': song_record[0][1]})
-                        if album_record:
-                            song.album = album_record[0][0]
-                        else:
-                            song.album = "Unknown"
-                        song_id = song_record[0][0]
-                        try:
-                            self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
-                            response = self.generate_add_response(song)
-                        except sqlite3.IntegrityError as e:
-                            print(e)
-                            response = AnnotatedUtterance(
-                                f"The song \"{title}\" by \"{artist}\" is already in the playlist.",
-                                participant=DialogueParticipant.AGENT,
-                            )
-                            
-                    except Exception as e:
+                        response = self.generate_add_response(songs)
+                    except sqlite3.IntegrityError as e:
                         print(e)
                         response = AnnotatedUtterance(
-                            f"The song \"{title}\" by \"{artist}\" does not exist in the database.",
+                            f"The song \"{songs[0].title}\" by \"{songs[0].artist}\" is already in the playlist.",
+                            participant=DialogueParticipant.AGENT,
+                        )
+                else:
+                    response = AnnotatedUtterance(
+                            f"Sorry but I couldn't understand which song you want to add.",
                             participant=DialogueParticipant.AGENT,
                         )
 
-                    self._dialogue_connector.register_agent_utterance(response)
-                    self.check_for_suggestions()
-                    return
-                else:
-                    response = AnnotatedUtterance(
-                        "Please use the format: add \"song_title\" - \"artist_name\".",
-                        participant=DialogueParticipant.AGENT,
-                    )
-
-                    self._dialogue_connector.register_agent_utterance(response)
-                    return
+                self._dialogue_connector.register_agent_utterance(response)
+                self.check_for_suggestions()
+                return
 
             elif utterance.text.startswith("remove"):
                 self.used_commands.add("remove")
-                parts = utterance.text[7:].split(' - ')
-                if len(parts) == 2:
-                    title = parts[0].strip('"')
-                    artist = parts[1].strip('"')
-
-                    song = Song(title=title, artist=artist or None, album=None)
-
-                    try:
-                        artist_record = self.db.read(table='artists', data=['id'], where={'name': artist})
-                        song_record = self.db.read(table='songs', data=['id'], where={'name': title, 'artist_id': artist_record[0][0]})
-                        song_id = song_record[0][0]
-
-                        self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
-
-                        response = self.generate_remove_response(song)
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        response = AnnotatedUtterance(
-                            f"{title} by {artist} not found in the playlist.",
-                            participant=DialogueParticipant.AGENT,
-                        )
-                else:
+                playlist_songs = [Song(id_=song[0], title=song[1], artist_name=song[2], album_name=song[3], artist_id=song[4], album_id=song[5]) for song in self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.id', 'songs.name', 'artists.name', 'albums.name', 'artists.id', 'albums.id'))]
+                songs = self.entity_linker.recognize_song_in_playlist(utterance.text, playlist_songs)
+                song_to_delete = songs[0][0]
+                print(f"song_to_delete: {song_to_delete}")
+                try:
+                    self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_to_delete.id})
+                    response = self.generate_remove_response(song_to_delete)
+                except Exception as e:
+                    print(f"Error: {e}")
                     response = AnnotatedUtterance(
-                        "Please use the format: remove \"song_title\" - \"artist_name\".",
+                        f"{song_to_delete.title} by {song_to_delete.artist_name} not found in the playlist.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
@@ -207,7 +176,7 @@ class PlaylistAgent(Agent):
             elif utterance.text.startswith("show"):
                 self.used_commands.add("show")
                 print(f"playlist: {self.playlist}")
-                songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name'))
+                songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=['songs.name', 'artists.name'])
                 text = ""
                 print(f"songs: {songs}")
                 for song in songs:
@@ -240,25 +209,32 @@ class PlaylistAgent(Agent):
             
             elif "date album : " in utterance.text:
                 self.used_commands.add("date album")
-                album_name = utterance.text.split("date album :")[-1].strip().strip('"').strip("'")
 
                 try:
-                    release_date_record = self.db.read(table='albums', data=['release_date'], where={'name': album_name})
+                    artists = self.entity_linker.recognize_artist(utterance.text)
+                    if artists:
+                        context = {"artists": [artist[0] for artist in artists]}
+                    else:
+                        context = {}
+
+                    albums = self.entity_linker.recognize_album(utterance.text, context=context)
+                    album = albums[0][0]
+                    release_date_record = self.db.read(table='albums', data=['release_date'], where=f'id = "{album.id}"')
                     if release_date_record:
                         release_date_timestamp = release_date_record[0][0]
                         date = datetime.datetime.fromtimestamp(release_date_timestamp / 1000)
                         response = AnnotatedUtterance(
-                            f"The album '{album_name}' was released on {date.strftime('%Y-%m-%d')}.",
+                            f"The album '{album.name}' was released on {date.strftime('%Y-%m-%d')}.",
                             participant=DialogueParticipant.AGENT,
                         )
                     else:
                         response = AnnotatedUtterance(
-                            f"I don't know when the album '{album_name}' was released.",
+                            f"I don't know when the album '{album.name}' was released.",
                             participant=DialogueParticipant.AGENT,
                         )
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The album \"{album_name}\" does not exist in the database.",
+                        f"The album \"{album.name}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
@@ -267,11 +243,11 @@ class PlaylistAgent(Agent):
             
             elif "genre artist : " in utterance.text:
                 self.used_commands.add("genre artist")
-                parts = utterance.text[15:]
-                artist = parts.strip('"').strip("'")
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                artist = artists[0][0]
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['id', 'genre', 'name'], where={'name': artist})
+                    artist_record = self.db.read(table='artists', data=['id', 'genre', 'name'], where=f'id = "{artist.id}"')
                     if artist_record:
                         artist_id = artist_record[0][0]
                         artist_genre = artist_record[0][1]
@@ -282,7 +258,7 @@ class PlaylistAgent(Agent):
                             plural_singular = " genre is"
                         if artist_genre:
                             response = AnnotatedUtterance(
-                                f"{artist_name}'s {plural_singular} {artist_genre}.",
+                                f"{artist_name}'s {plural_singular} {', '.join(artist_genre)}.",
                                 participant=DialogueParticipant.AGENT,
                             )
                         else:
@@ -298,7 +274,7 @@ class PlaylistAgent(Agent):
 
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The song \"{title}\" by \"{artist}\" does not exist in the database.",
+                        f"The artist \"{artist.name}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
 
@@ -308,33 +284,26 @@ class PlaylistAgent(Agent):
             
             elif "number songs :" in utterance.text:
                 self.used_commands.add("number songs")
-                artist_name = utterance.text.split("number songs :")[-1].strip().strip('"').strip("'")
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                artist = artists[0][0]
 
                 try:
-                    artist = self.db.read(table='artists', data=['id'], where={'name': artist_name})
-                    if artist:
-                        artist_id = artist[0][0]
-                        total_songs_by_album_by_artist = self.db.read(
-                            table='albums',
-                            data=['total_songs'],
-                            where={'artist_id': str(artist_id)}
-                        )
-                        if total_songs_by_album_by_artist:
-                            total_songs = sum([item[0] for item in total_songs_by_album_by_artist])
-                            
-                            response = AnnotatedUtterance(
-                                f"The artist '{artist_name}' has {total_songs} songs.",
-                                participant=DialogueParticipant.AGENT,
-                            )
-                    else:
+                    total_songs_by_album_by_artist = self.db.read(
+                        table='albums',
+                        data=['total_songs'],
+                        where=f'artist_id = "{str(artist.id)}"'
+                    )
+                    if total_songs_by_album_by_artist:
+                        total_songs = sum([item[0] for item in total_songs_by_album_by_artist])
+                        
                         response = AnnotatedUtterance(
-                            f"I don't have information on the number of songs for the artist '{artist_name}'.",
+                            f"The artist '{artist.name}' has {total_songs} songs.",
                             participant=DialogueParticipant.AGENT,
                         )
 
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The artist \"{artist_name}\" does not exist in the database.",
+                        f"The artist \"{artist.name}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
@@ -343,25 +312,26 @@ class PlaylistAgent(Agent):
 
             elif "number albums :" in utterance.text:
                 self.used_commands.add("number albums")
-                artist_name = utterance.text.split("number albums :")[-1].strip().strip('"').strip("'")
+
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                artist = artists[0][0]
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['id'], where={'name': artist_name})
-                    total_albums_record = self.db.read(table='artists', data=['total_albums'], where={'id': artist_record[0][0]})
+                    total_albums_record = self.db.read(table='artists', data=['total_albums'], where=f'id = "{artist.id}"')
                     if total_albums_record:
                         response = AnnotatedUtterance(
-                            f"The artist '{artist_name}' has released {total_albums_record[0][0]} albums.",
+                            f"The artist '{artist.name}' has released {total_albums_record[0][0]} albums.",
                             participant=DialogueParticipant.AGENT,
                         )
                     else:
                         response = AnnotatedUtterance(
-                            f"I don't have information about the artist '{artist_name}'.",
+                            f"I don't have information about the artist '{artist.name}'.",
                             participant=DialogueParticipant.AGENT,
                         )
                 except Exception as e:
                     print(e)
                     response = AnnotatedUtterance(
-                        f"The artist \"{artist_name}\" does not exist in the database.",
+                        f"The artist \"{artist.name}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
@@ -370,23 +340,29 @@ class PlaylistAgent(Agent):
 
             elif "which album : " in utterance.text.lower():
                 self.used_commands.add("which album")
-                song_title = utterance.text.split("which album : ")[-1].strip().strip('"').strip("'")
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                if artists:
+                    context = {"artists": [artist[0] for artist in artists]}
+                else:
+                    context = {}
+                songs = self.entity_linker.recognize_song(utterance.text, context=context)
+                song = songs[0][0]
 
                 try:
-                    album_record = self.db.read_album_from_song(song_title=song_title, data=['albums.name'])
+                    album_record = self.db.read_album_from_song(song_id=song.id, data=['albums.name'])
                     if album_record:
                         response = AnnotatedUtterance(
-                            f"The song '{song_title}' is featured in the album(s) '{', '.join(album[0] for album in album_record)}'.",
+                            f"The song '{song.title}' is featured in the album(s) '{', '.join(album[0] for album in album_record)}'.",
                             participant=DialogueParticipant.AGENT,
                         )
                     else:
                         response = AnnotatedUtterance(
-                            f"I don't know which album features the song '{song_title}'.",
+                            f"I don't know which album features the song '{song.title}'.",
                             participant=DialogueParticipant.AGENT,
                         )
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The song \"{title}\" does not exist in the database.",
+                        f"The song \"{song.title}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
@@ -395,33 +371,32 @@ class PlaylistAgent(Agent):
             
             elif "give song : " in utterance.text:
                 self.used_commands.add("give song")
-                artist_name = utterance.text.split("give song :")[-1].strip().strip('"').strip("'")
+                artists = self.entity_linker.recognize_artist(utterance.text)
+                artist = artists[0][0]
 
                 try:
-                    artist_record = self.db.read(table='artists', data=['id'], where={'name': artist_name})
-
-                    song_record = self.db.read(table='songs', data=['name'], where={'artist_id': artist_record[0][0]})
+                    song_record = self.db.read(table='songs', data=['name'], where=f'artist_id = "{artist.id}"')
                     if song_record:
                         random_song = random.choice(song_record)
                         response = AnnotatedUtterance(
-                            f"Here's a song by {artist_name}: {random_song[0]}.",
+                            f"Here's a song by {artist.name}: {random_song[0]}.",
                             participant=DialogueParticipant.AGENT,
                         )
                     else:
                         response = AnnotatedUtterance(
-                            f"Sorry, I couldn't find any songs by {artist_name}.",
+                            f"Sorry, I couldn't find any songs by {artist.name}.",
                             participant=DialogueParticipant.AGENT,
                         )
                 except Exception as e:
                     response = AnnotatedUtterance(
-                        f"The artist \"{artist_name}\" does not exist in the database.",
+                        f"The artist \"{artist.name}\" does not exist in the database.",
                         participant=DialogueParticipant.AGENT,
                     )
                 self._dialogue_connector.register_agent_utterance(response)
                 self.check_for_suggestions()
                 return
 
-        except IndexError as e:
+        except InterruptedError as e:
             print(f"Error while processing user utterance: {e}")
             response = AnnotatedUtterance(
                 "I don't understand. Please make sure you have the correct format.",
@@ -437,9 +412,9 @@ class PlaylistAgent(Agent):
         )
         self._dialogue_connector.register_agent_utterance(response)
 
-    def generate_add_response(self, song: Song) -> AnnotatedUtterance:
+    def generate_add_response(self, songs: List[Song]) -> AnnotatedUtterance:
         """
-        Generates a response when a song is added to the playlist.
+        Generates a response to display the songs to add
 
         Args:
             song: The Song instance that was added to the playlist.
@@ -448,24 +423,21 @@ class PlaylistAgent(Agent):
             AnnotatedUtterance: The response to be sent to the user.
         """
         response = AnnotatedUtterance(
-            song.title + " by " + song.artist + " has been added to your playlist.",
+            "Please select the songs you want to add to the playlist : ",
             participant=DialogueParticipant.AGENT,
             intent=Intent(label="add")
         )
 
         annotations = [
             Annotation(
-                slot="artist",
-                value=song.artist
-            ),
-            Annotation(
-                slot="title",
-                value=song.title
-            ),
-            Annotation(
-                slot="album",
-                value=song.album
-            )
+                slot=i,
+                value={
+                    "id": song.id,
+                    "title": song.title,
+                    "artist": song.artist_name,
+                    "album": song.album_name
+                }
+            ) for i, (song, score) in enumerate(songs)
         ]
         response.add_annotations(annotations)
 
@@ -482,26 +454,22 @@ class PlaylistAgent(Agent):
             AnnotatedUtterance: The response to be sent to the user.
         """
         response = AnnotatedUtterance(
-            song.title + " by " + song.artist + " has been removed from your playlist.",
+            song.title + " by " + song.artist_name + " has been removed from your playlist.",
             participant=DialogueParticipant.AGENT,
             intent=Intent(label="remove")
         )
 
         annotations = [
             Annotation(
-                slot="artist",
-                value=song.artist
-            ),
-            Annotation(
-                slot="title",
-                value=song.title
-            ),
-            Annotation(
-                slot="album",
-                value=song.album
+                slot="song",
+                value={
+                    "id": song.id,
+                    "title": song.title,
+                    "artist": song.artist_name,
+                    "album": song.album_name
+                }
             )
         ]
         response.add_annotations(annotations)
 
         return response
-        self.check_for_suggestions()

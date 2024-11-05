@@ -21,10 +21,11 @@ export type ChatMessage = {
 
 export type Annotation = {
   slot: string;
-  value: string;
+  value: Song;
 };
 
 export type Song = {
+  id?: string;
   title?: string;
   artist?: string;
   album?: string;

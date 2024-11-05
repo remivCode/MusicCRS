@@ -1,5 +1,8 @@
-import { MDBIcon } from "mdb-react-ui-kit";
+import { MDBIcon, MDBDropdown, MDBDropdownToggle, MDBDropdownMenu, MDBDropdownItem, MDBBtn} from "mdb-react-ui-kit";
 import Feedback from "./Feedback";
+import React, { useState, useEffect } from 'react';
+import { AgentMessage, ChatMessage, Annotation, Song, Response } from "../types";
+import { useSocket } from "../contexts/SocketContext";
 
 function UserChatMessage({ message }: { message: string }): JSX.Element {
   return (
@@ -23,11 +26,23 @@ function AgentChatMessage({
   message,
   image_url,
   feedback,
+  last_message,
+  choices,
 }: {
   message: string;
   image_url?: string;
   feedback: ((message: string, event: string) => void) | null;
+  last_message?: boolean;
+  choices: Song[];
 }): JSX.Element {
+  const { socket } = useSocket();
+  console.log("choices", choices);
+
+  const handleAddSong = (song: Song) => {
+    console.log("song", song);
+    socket?.emit("add", {add: song}); 
+  };
+
   return (
     <div className="d-flex flex-row justify-content-start mb-4">
       <div className="text-center">
@@ -51,6 +66,19 @@ function AgentChatMessage({
           </div>
         )}
         <p className="small mb-0" style={{ whiteSpace: "pre-wrap" }}>{message}</p>
+        {last_message && choices.length > 0 && ( 
+          <MDBDropdown dropdown group>
+            <MDBDropdownToggle>SELECT</MDBDropdownToggle>
+            <MDBDropdownMenu>
+              {choices.map((item, index) => (
+                <MDBDropdownItem key={index} link onClick={() => handleAddSong(item)}>
+                  {item.artist} - {item.title}
+                </MDBDropdownItem>
+              ))}
+            </MDBDropdownMenu>
+          </MDBDropdown>
+          )
+        }
       </div>
     </div>
   );
