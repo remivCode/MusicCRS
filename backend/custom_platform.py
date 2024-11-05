@@ -68,8 +68,8 @@ class CustomPlatform(FlaskSocketPlatform):
         else:
             self.playlist = playlist[0][0]
 
-        if os.path.exists(os.path.join('data', 'models', 'ner_model')):
-            self.entity_linker = EntityLinker(db=self.db, train=True)
+        if os.path.exists(os.path.join('data', 'models', 'ner_model', 'model-best')):
+            self.entity_linker = EntityLinker(db=self.db)
         else:
             self.entity_linker = EntityLinker(db=self.db, train=True)
 
@@ -143,35 +143,49 @@ class CustomPlatform(FlaskSocketPlatform):
             
 
     def add(self, user_id: str, add: dict) -> None:
-        song = Song(add["title"], add["artist"], add["album"])
-        artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist_name}"')
-        if not artist_record:
-            self.socketio.emit("add:response", {"status": "KO", "message": "Artist not found"}, room=user_id)
-            return
-
-        artist_id = artist_record[0][0]
-
-        album_record = self.db.read(table='albums', data=['id'], where=f'name "{song.album_name}"')
-        if not album_record:
-            self.socketio.emit("add:response", {"status": "KO", "message": "Album not found"}, room=user_id)
-            return
-
-        album_id = album_record[0][0]
-
-        song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_id}"')
-        if song_record:
-            song_id = song_record[0][0]
+        if "id" in add:
             try: 
-                self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+                self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': add["id"]})
             except sqlite3.IntegrityError as e:
                 print(e)
                 self.socketio.emit("add:response", {"status": "KO", "message": "Song already in playlist"}, room=user_id)
                 return
-            self.socketio.emit("add:response", {"status": "OK", "message": "Song added successfully"}, room=user_id)
+            songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name', 'albums.name'))
+            song_data = [{"title": song[0], "artist": song[1], "album": song[2]} for song in songs]
+            self.socketio.emit("playlist", song_data, room=user_id)
             return
+
         else:
-            self.socketio.emit("add:response", {"status": "KO", "message": "Song not found"}, room=user_id)
-            return
+            song = Song(title=add["title"], artist_name=add["artist"], album_name=add["album"])
+            print(song.album_name, song.artist_name, song.title)
+            artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist_name}"')
+            if not artist_record:
+                self.socketio.emit("add:response", {"status": "KO", "message": "Artist not found"}, room=user_id)
+                return
+
+            artist_id = artist_record[0][0]
+
+            album_record = self.db.read(table='albums', data=['id'], where=f'name "{song.album_name}"')
+            if not album_record:
+                self.socketio.emit("add:response", {"status": "KO", "message": "Album not found"}, room=user_id)
+                return
+
+            album_id = album_record[0][0]
+
+            song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_id}"')
+            if song_record:
+                song_id = song_record[0][0]
+                try: 
+                    self.db.create(table='playlist_songs', data={'playlist_id': self.playlist, 'song_id': song_id})
+                except sqlite3.IntegrityError as e:
+                    print(e)
+                    self.socketio.emit("add:response", {"status": "KO", "message": "Song already in playlist"}, room=user_id)
+                    return
+                self.socketio.emit("add:response", {"status": "OK", "message": "Song added successfully"}, room=user_id)
+                return
+            else:
+                self.socketio.emit("add:response", {"status": "KO", "message": "Song not found"}, room=user_id)
+                return
 
     def clear(self, user_id: str) -> None:
         self.db.delete(table='playlist_songs', data={'playlist_id': self.playlist})

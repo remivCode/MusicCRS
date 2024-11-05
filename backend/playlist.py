@@ -45,7 +45,7 @@ class Playlist():
         cursor.execute(request)
         return cursor.fetchall()
 
-    def read_songs_from_playlist(self, playlist_id, data: dict[str, str] = {}):
+    def read_songs_from_playlist(self, playlist_id, data: list[str] = ["*"]):
         cursor = self.conn.cursor()
         cursor.execute('SELECT ' + ', '.join(data) + ' FROM songs ' +
             'INNER JOIN playlist_songs ON songs.id = playlist_songs.song_id ' +
@@ -54,14 +54,14 @@ class Playlist():
             'WHERE playlist_songs.playlist_id = ?', (playlist_id,))
         return cursor.fetchall()
     
-    def read_album_from_song(self, song_title, data: list[str] = ("*")):
+    def read_album_from_song(self, song_id, data: list[str] = ("*")):
         cursor = self.conn.cursor()
         cursor.execute('''
         SELECT DISTINCT ''' + ', '.join(data) + '''
         FROM albums
         INNER JOIN songs ON albums.id = songs.album_id
-        WHERE songs.name = ?
-    ''', (song_title,))
+        WHERE songs.id = ?
+    ''', (song_id,))
         return cursor.fetchall()
     
     def init_db(self):

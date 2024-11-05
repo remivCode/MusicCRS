@@ -26,3 +26,40 @@
   flex-direction: column;
   gap: 20px;
 }
+
+.loading-message-box {
+  display: flex;
+  padding-left: 55px;
+  gap: 5px;
+}
+
+.loading-message-box .spinner-grow {
+  animation: grow 1s infinite;
+}
+
+.loading-message-box .spinner-grow:nth-child(1) {
+  animation-delay: 0s;
+  background-color: rgba(57, 192, 237, 0.5);
+}
+
+.loading-message-box .spinner-grow:nth-child(2) {
+  animation-delay: 0.15s;
+  background-color: rgba(57, 192, 237, 0.5);
+}
+
+.loading-message-box .spinner-grow:nth-child(3) {
+  animation-delay: 0.3s;
+  background-color: rgba(57, 192, 237, 0.5);
+}
+
+@keyframes grow {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

@@ -8,5 +8,5 @@ class Song():
         self.artist_id = artist_id
         self.album_id = album_id
 
-        def __str__(self):
+        def __repr__(self):
             return f"Song(id={self.id}, title='{self.title}', artist_name='{self.artist_name}', album_name='{self.album_name}', popularity={self.popularity}, artist_id={self.artist_id}, album_id={self.album_id})"

@@ -25,36 +25,13 @@ export default function Playlist() {
     });
   });
 
-  const handleAgentAddSong = (annotations: Annotation[]) => {
-    const song: Song = {}
-    annotations.map((annotation) => 
-      {
-        if (annotation.slot === "title") {
-          song.title = annotation.value
-        } else if (annotation.slot === "artist") {
-          song.artist = annotation.value
-        } else if (annotation.slot === "album") {
-          song.album = annotation.value
-        }
-      }
-    )
-
-    if (song.title && song.artist) {
-      setPlaylist([...playlist, song]);
-    }
-  }
-
   const handleAgentRemoveSong = (annotations: Annotation[]) => {
     const song: Song = {}
     annotations.map((annotation) => 
       {
-        if (annotation.slot === "title") {
-          song.title = annotation.value
-        } else if (annotation.slot === "artist") {
-          song.artist = annotation.value
-        } else if (annotation.slot === "album") {
-          song.album = annotation.value
-        }
+        song.title = annotation.value.title
+        song.artist = annotation.value.artist
+        song.album = annotation.value.album
       }
     )
 
@@ -75,7 +52,7 @@ export default function Playlist() {
     console.log(annotations)
 
     if (intent === "add") {
-      handleAgentAddSong(annotations)
+      
     }
     else if (intent === "remove") {
       handleAgentRemoveSong(annotations)
@@ -95,7 +72,6 @@ export default function Playlist() {
 
       socket?.emit("add", {add: song}); 
       socket?.on("add:response", (response: Response) => {
-        console.log(response)
         if (response.status === "OK") {
           setPlaylist([...playlist, song]);
           setNewSong({ title: '', artist: '', album: '' }); // Clear input fields after adding
