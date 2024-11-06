@@ -239,7 +239,7 @@ export default function ChatBox() {
           <ul>
           {commands.map((command, index) => (
             <li key={index}>
-              <strong>{command.syntax}</strong>: {command.desc}
+              <strong>{command.desc}</strong>
             </li>
           ))}
           </ul>

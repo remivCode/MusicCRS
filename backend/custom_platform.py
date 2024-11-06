@@ -92,8 +92,8 @@ class CustomPlatform(FlaskSocketPlatform):
         user.connect_playlist(self.playlist, self.db)
     
         print(f"platform playlist id {self.playlist}")
-        songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name', 'albums.name'))
-        song_data = [{"title": song[0], "artist": song[1], "album": song[2]} for song in songs]
+        songs = self.db.read_songs_from_playlist(playlist_id=self.playlist, data=('songs.name', 'artists.name', 'albums.name', 'songs.id'))
+        song_data = [{"title": song[0], "artist": song[1], "album": song[2], "id": song[3]} for song in songs]
         self.socketio.emit("playlist", song_data, room=user_id)
 
         dialogue_connector = DialogueConnector(
@@ -130,10 +130,13 @@ class CustomPlatform(FlaskSocketPlatform):
         )
 
     def remove(self, user_id: str, remove: dict) -> None:
-        song = Song(remove["title"], remove["artist"], remove["album"])
+        print(remove)
+        song = Song(title=remove["title"], artist_name=remove["artist"], album_name=remove["album"], id_=remove["id"])
         try:
             artist_record = self.db.read(table='artists', data=['id'], where=f'name = "{song.artist_name}"')
+            print(f"deleted artist _record: {artist_record}")
             song_record = self.db.read(table='songs', data=['id'], where=f'name = "{song.title}" AND artist_id = "{artist_record[0][0]}"')
+            print(f"deleted song _record: {song_record}")
             song_id = song_record[0][0]
             playlist_song_record = self.db.read(table='playlist_songs', data=['playlist_id'], where=f'playlist_id = "{self.playlist}" AND song_id = "{song_id}"')
             print(f"deleted playlist_song _record: {playlist_song_record}")

@@ -28,9 +28,7 @@ Please empty my playlist.,clear
 Please empty my playlist.,clear
 Please empty my playlist.,clear
 Please empty my playlist.,clear
-Remove every song from my playlist.,clear
 Clear out the entire playlist.,clear
-Erase all items from my playlist.,clear
 When was this album released?,date album
 Can you tell me the release date of this album?,date album
 What is the release year of this album?,date album
@@ -73,9 +71,6 @@ I would like to could you tell me which album has a song,which album
 "Put this track into my playlist, please.",add
 Could you tell me which album has this song? please.,which album
 I want a song removed from the list.,remove
-Remove every song from my playlist.,clear
-Remove every song from my playlist.,clear
-Remove every song from my playlist.,clear
 Add this to my song list. please.,add
 Could you give me the album count for a artist,number albums
 Could you give me the album count for this artist?,number albums
@@ -175,6 +170,520 @@ I would like to can you tell me how many songs a artist has,number songs
 I would like to can you tell me which album has this song?,which album
 How many songs does this artist have? please.,number songs
 How many songs does this artist have? please.,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+How many songs,number songs
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Add,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Put,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Include,add
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Remove,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Delete,remove
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Clear,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Empty,clear
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+Give,give song
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+When,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Date,date album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+Which,which album
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+genre,genre artist
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+see,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
+Show,show
 I would like to could you give me the album count for a artist,number albums
 I would like to add this to my song list. please. please. please. please.,add
 Clear out the entire playlist.,clear
@@ -336,14 +845,12 @@ Add a to my song list. please.,add
 I'd like to add this track to the playlist. please. please.,add
 I would like to what’s the total number of albums by this artist?,number albums
 I would like to add this to my song list. please. please. please.,add
-Erase all items from my playlist.,clear
 Clear all the songs in my playlist.,clear
 I would like to i would like to how many songs does a artist have,number songs
 I would like to tell me when this album was released.,date album
 How many songs does this artist have? please.,number songs
 Can you tell me how many songs a artist has please.,number songs
 I would like to please delete this song out of my playlist.,remove
-Remove every song from my playlist.,clear
 I would like to add this to my song list. please.,add
  include this song in my playlist.,add
 Clear all the songs in my playlist.,clear
@@ -766,9 +1273,6 @@ I would like to could you tell me which album has a song,which album
 "Put this track into my playlist, please.",add
 Could you tell me which album has this song? please.,which album
 I want a song removed from the list.,remove
-Remove every song from my playlist.,clear
-Remove every song from my playlist.,clear
-Remove every song from my playlist.,clear
 Add this to my song list. please.,add
 Could you give me the album count for a artist,number albums
 Could you give me the album count for this artist?,number albums
@@ -926,7 +1430,6 @@ Please empty my playlist.,clear
 Please empty my playlist.,clear
 Please empty my playlist.,clear
 Please empty my playlist.,clear
-Remove every song from my playlist.,clear
 In which genre is this artist's music categorized?,genre artist
 Can you identify this artist's genre?,genre artist
 How would you describe the genre of this artist?,genre artist

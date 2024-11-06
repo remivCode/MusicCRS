@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 import os
 import pandas as pd
-
+import re
 
 class Playlist():
     def __init__(self, id, path=os.path.join("data", "spotify.sqlite"), init=True):
@@ -289,6 +289,7 @@ class Playlist():
                 break """
 
     def add_clean_columns(self):
+        print("Adding clean columns")
         cursor = self.conn.cursor()
         cursor.execute("ALTER TABLE songs ADD COLUMN clean_title TEXT;")
         cursor.execute("ALTER TABLE albums ADD COLUMN clean_album_title TEXT;")
@@ -302,23 +303,23 @@ class Playlist():
         def clean_text(text):
             return re.sub(r'[^\w\s]', '', text).lower()
 
-        cursor.execute("SELECT song_id, title FROM songs;")
+        cursor.execute("SELECT id, name FROM songs;")
         songs = cursor.fetchall()
-        for song_id, title in songs:
-            clean_title = clean_text(title)
-            cursor.execute("UPDATE songs SET clean_title = ? WHERE song_id = ?", (clean_title, song_id))
+        for song_id, name in songs:
+            clean_title = clean_text(name)
+            cursor.execute("UPDATE songs SET clean_title = ? WHERE id = ?", (clean_title, song_id))
 
-        cursor.execute("SELECT album_id, title FROM albums;")
+        cursor.execute("SELECT id, name FROM albums;")
         albums = cursor.fetchall()
-        for album_id, title in albums:
-            clean_album_title = clean_text(title)
-            cursor.execute("UPDATE albums SET clean_album_title = ? WHERE album_id = ?", (clean_album_title, album_id))
+        for album_id, name in albums:
+            clean_album_name = clean_text(name)
+            cursor.execute("UPDATE albums SET clean_album_title = ? WHERE id = ?", (clean_album_name, album_id))
 
-        cursor.execute("SELECT artist_id, name FROM artists;")
+        cursor.execute("SELECT id, name FROM artists;")
         artists = cursor.fetchall()
         for artist_id, name in artists:
             clean_artist_name = clean_text(name)
-            cursor.execute("UPDATE artists SET clean_artist_name = ? WHERE artist_id = ?", (clean_artist_name, artist_id))
+            cursor.execute("UPDATE artists SET clean_artist_name = ? WHERE id = ?", (clean_artist_name, artist_id))
 
         self.conn.commit()
         print("Clean columns have been updated with lowercase, punctuation-free values.")

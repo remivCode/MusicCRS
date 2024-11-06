@@ -72,7 +72,7 @@ function AgentChatMessage({
             <MDBDropdownMenu>
               {choices.map((item, index) => (
                 <MDBDropdownItem key={index} link onClick={() => handleAddSong(item)}>
-                  {item.artist} - {item.title}
+                  {item.title} by {item.artist} from {item.album}
                 </MDBDropdownItem>
               ))}
             </MDBDropdownMenu>

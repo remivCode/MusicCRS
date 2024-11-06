@@ -35,9 +35,9 @@ class EntityLinker:
 
         print("Loading knowledge base...")
         self.knowledge_base = {
-            "songs": self.db.read(table="songs", data=["id", "name", "artist_id", "album_id", "popularity"]),
-            "artists": self.db.read(table="artists", data=["id", "name", "popularity"]),
-            "albums": self.db.read(table="albums", data=["id", "name", "artist_id", "popularity"]),
+            "songs": self.db.read(table="songs", data=["id", "name", "artist_id", "album_id", "popularity", "clean_title"]),
+            "artists": self.db.read(table="artists", data=["id", "name", "popularity", "clean_artist_name"]),
+            "albums": self.db.read(table="albums", data=["id", "name", "artist_id", "popularity", "clean_album_title"]),
         }
 
     def train_model(self, training_data):
@@ -164,7 +164,7 @@ class EntityLinker:
         
         return output
 
-    def mention_detection(self, text, n=3, labels=['SONG_TITLE', 'ARTIST_NAME', 'ALBUM_NAME']):
+    def mention_detection(self, text, n=4, labels=['SONG_TITLE', 'ARTIST_NAME', 'ALBUM_NAME']):
         """
         Detect mentions of potential song titles in the text.
         :param text: Input text.
@@ -207,14 +207,14 @@ class EntityLinker:
         print("Reading from knowledge base...")
         records = self.knowledge_base["songs"]
 
-        songs = [Song(title=row[1], id_=row[0], artist_id=row[2], album_id=row[3], popularity=row[4]) for row in records]
+        songs = [Song(title=row[1], id_=row[0], artist_id=row[2], album_id=row[3], popularity=row[4], clean_title=row[5]) for row in records]
 
-        song_titles_cleaned = [self.clean_text(title) for title in [song.title for song in songs]] # Le faire au début une fois pour toute quand on définit la knowledge base
+        song_titles_cleaned = [song.clean_title for song in songs] # Le faire au début une fois pour toute quand on définit la knowledge base
 
         for mention in mentions:
             mention = self.clean_text(mention)
             song_candidates = process.extract(mention, song_titles_cleaned, limit=limit, scorer=fuzz.ratio)
-            song_candidates = [(songs[idx], score + len(mention) * 5) for _, score, idx in song_candidates]
+            song_candidates = [(songs[idx], score + len(mention) * 4) for _, score, idx in song_candidates]
             total_song_candidates += song_candidates
 
         print(f"Song candidates: {total_song_candidates}")
@@ -234,9 +234,9 @@ class EntityLinker:
         print("Reading from knowledge base...")
         records = self.knowledge_base["albums"]
 
-        albums = [Album(name=row[1], id_=row[0], artist_id=row[2], popularity=row[3]) for row in records]
+        albums = [Album(name=row[1], id_=row[0], artist_id=row[2], popularity=row[3], clean_album_title=row[4]) for row in records]
 
-        album_titles_cleaned = [self.clean_text(name) for name in [album.name for album in albums]] # Le faire au début une fois pour toute quand on définit la knowledge base
+        album_titles_cleaned = [album.clean_album_name for album in albums] # Le faire au début une fois pour toute quand on définit la knowledge base
 
         for mention in mentions:
             mention = self.clean_text(mention)
@@ -261,9 +261,9 @@ class EntityLinker:
         print("Reading from knowledge base...")
         records = self.knowledge_base["artists"]
 
-        artists = [Artist(name=row[1], id_=row[0], popularity=row[2]) for row in records]
+        artists = [Artist(name=row[1], id_=row[0], popularity=row[2], clean_artist_name=row[3]) for row in records]
 
-        artist_titles_cleaned = [self.clean_text(name) for name in [artist.name for artist in artists]] # Le faire au début une fois pour toute quand on définit la knowledge base
+        artist_titles_cleaned = [artist.clean_artist_name for artist in artists] # Le faire au début une fois pour toute quand on définit la knowledge base
 
         for mention in mentions:
             mention = self.clean_text(mention)
@@ -418,15 +418,15 @@ class EntityLinker:
         total_song_candidates = []
 
         song_titles_cleaned = [self.clean_text(title) for title in [song.title for song in playlist]] # Le faire au début une fois pour toute quand on définit la knowledge base
-
+        print("song_titles_cleaned", song_titles_cleaned)
         for mention in mentions:
             mention = self.clean_text(mention)
             song_candidates = process.extract(mention, song_titles_cleaned, limit=3, scorer=fuzz.ratio)
             song_candidates = [(playlist[idx], score) for _, score, idx in song_candidates]
             total_song_candidates += song_candidates
 
-        print(f"Song candidates: {total_song_candidates}")
+        total_song_candidates = sorted(total_song_candidates, key=lambda x: x[1], reverse=True)[:10]
+        print(f"Song candidates: {[song.title for song, _ in total_song_candidates]}")
 
-        if song_candidates:
-            best_match = self.song_disambiguation(mentions, song_candidates)
-            return best_match
+        return total_song_candidates
+

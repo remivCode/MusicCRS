@@ -135,6 +135,7 @@ class PlaylistAgent(Agent):
             vectorizer_loaded = joblib.load('models/vectorizer.joblib')
             new_query_vec = vectorizer_loaded.transform([utterance.text])
             new_prediction = clf_loaded.predict(new_query_vec)
+            print(f"Prediction: {new_prediction}")
             print(f"New prediction: {new_prediction[0]}")
 
             if new_prediction[0] == "add":
@@ -268,7 +269,7 @@ class PlaylistAgent(Agent):
                             plural_singular = " genre is"
                         if artist_genre:
                             response = AnnotatedUtterance(
-                                f"{artist_name}'s {plural_singular} {', '.join(artist_genre)}.",
+                                f"{artist_name}'s {plural_singular} {', '.join(artist_genre.split())}.",
                                 participant=DialogueParticipant.AGENT,
                             )
                         else:
